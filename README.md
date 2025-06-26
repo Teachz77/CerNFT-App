@@ -1,6 +1,6 @@
 # CerNFT-App
 
-Step by step Membuat Rust Smart Contract Dapp pada Solana:
+## Step by step Membuat Rust Smart Contract Dapp pada Solana:
 
 1. Buat Contract Architecture/Diagram
 2. Project Setup (Persiapkan template code atau instalasi)
@@ -11,26 +11,25 @@ Step by step Membuat Rust Smart Contract Dapp pada Solana:
 7. Buat code test pada setiap fitur-fitur
 8. Buat code user test
 
-===========================================================================
-Step by step Membuat Frontend Dapp pada Solana dengan React.js:
+
+## Step by step Membuat Frontend Dapp pada Solana dengan React.js:
 
 1. Buat code untuk connect wallet
 2. Integrasikan code smart contract pada frontend
 3. Buat code frontend sesuai fitur-fitur yang ada
 4. Setelah selesai semua, lakukan live deployment
 
-===========================================================================
 
-Perintah Template Dapp Solana:
+## Perintah Template Dapp Solana:
 
 npx create-solana-dapp@latest
 
-Perintah buat folder anchor:
+## Perintah buat folder anchor:
 
 anchor init [nama_project]
 
-============================================================================
---Cara Contract Deployment--
+
+## Cara Contract Deployment
 
 1. cd anchor/
 2. anchor build
@@ -43,36 +42,36 @@ Kalau belum punya pubkey:
 
 1. solana-keygen new
 
-============================================================================
+
 Proses Komplit untuk Debugging dan Perbaikan:
 
-# 1. Pastikan validator berjalan
-# Terminal 1:
+1. Pastikan validator berjalan
+Terminal 1:
 solana-test-validator --reset
 
-# 2. Konfirmasi validator merespons
-# Terminal 2:
+2. Konfirmasi validator merespons
+Terminal 2:
 solana config set --url localhost
 solana validators
 
-# 3. Bangun dan deploy program
+3. Bangun dan deploy program
 anchor clean
 anchor build
 PROGRAM_ID=$(solana address -k target/deploy/cernft-keypair.json)
 echo "Program ID: $PROGRAM_ID"
 
-# 4. Perbarui Anchor.toml dengan Program ID yang benar
-# Edit manual atau gunakan sed:
+4. Perbarui Anchor.toml dengan Program ID yang benar
+Edit manual atau gunakan sed:
 sed -i "s/cernft = \".*\"/cernft = \"$PROGRAM_ID\"/" Anchor.toml
 
-# 5. Deploy program
+5. Deploy program
 anchor deploy
 
-# 6. Verifikasi program ada di jaringan
+6. Verifikasi program ada di jaringan
 solana program show $PROGRAM_ID
 
-# 7. Baru jalankan script inisialisasi
+7. Baru jalankan script inisialisasi
 npx esrun scripts/init.ts
 
-# 8. Test untuk smart contract
+8. Test untuk smart contract
 anchor test --skip-local-validator --skip-deploy
