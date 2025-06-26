@@ -1,0 +1,85 @@
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* Additional Global Styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--solana-bg);
+  color: var(--solana-text);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--solana-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--solana-gradient);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #8a3fff 0%, #12d681 100%);
+}
+
+/* Selection Styling */
+::selection {
+  background: rgba(153, 69, 255, 0.3);
+  color: var(--solana-text);
+}
+
+::-moz-selection {
+  background: rgba(153, 69, 255, 0.3);
+  color: var(--solana-text);
+}
+
+/* Focus Styles */
+*:focus {
+  outline: 2px solid var(--solana-purple);
+  outline-offset: 2px;
+}
+
+button:focus,
+a:focus {
+  outline: 2px solid var(--solana-purple);
+  outline-offset: 2px;
+}
+
+/* Loading Animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loading {
+  animation: spin 1s linear infinite;
+}
+
+/* Smooth Transitions */
+* {
+  transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Print Styles */
+@media print {
+  * {
+    color: black !important;
+    background: white !important;
+  }
+  
+  .header,
+  .footer {
+    display: none;
+  }
+}
