@@ -43,7 +43,7 @@ Kalau belum punya pubkey:
 1. solana-keygen new
 
 
-Proses Komplit untuk Debugging dan Perbaikan:
+## Proses Komplit untuk Debugging dan Perbaikan:
 
 1. Pastikan validator berjalan
 Terminal 1:
@@ -75,3 +75,11 @@ npx esrun scripts/init.ts
 
 8. Test untuk smart contract
 anchor test --skip-local-validator --skip-deploy
+
+## Cara menjalankan aplikasi untuk terhubung dengan blockchain
+
+1. solana-test-validator --reset
+2. anchor build
+3. anchor deploy  
+4. npx esrun scripts/init.ts
+5. solana transfer ATya6VnSNxXkQwM3kyu2ApbdoJesG1gkdFdBBFCb6u9L 700  --allow-unfunded-recipient
