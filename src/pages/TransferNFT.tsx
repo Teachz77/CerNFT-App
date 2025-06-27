@@ -1,378 +1,279 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { useWallet } from '@solana/wallet-adapter-react'
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-import { PublicKey } from '@solana/web3.js'
-import { useNFT, CertificateNFT } from '../context/NFTContext'
-import { 
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { PublicKey } from '@solana/web3.js';
+import { useNFT, CertificateNFT } from '../context/NFTContext';
+import {
   getProvider,
   transferNFT,
   validateTransferRequest,
   estimateTransferCosts,
   TransferNFTResult
-} from '../services/blockchain'
-import './TransferNFT.css'
+} from '../services/blockchain';
+import './TransferNFT.css';
 
-interface TransferStep {
-  step: number
-  title: string
-  status: 'pending' | 'loading' | 'completed' | 'error'
-  message?: string
-}
-
+// Interface untuk state komponen
 interface TransferState {
-  selectedNFT: CertificateNFT | null
-  recipientAddress: string
-  isTransferring: boolean
-  transferSteps: TransferStep[]
-  transferResult: TransferNFTResult | null
-  platformFee: number
-  showConfirmModal: boolean
-  validationErrors: string[]
+  selectedNFT: CertificateNFT | null;
+  recipientAddress: string;
+  isTransferring: boolean;
+  transferSteps: TransferStep[];
+  transferResult: TransferNFTResult | null;
+  platformFee: number;
+  showConfirmModal: boolean;
+  validationErrors: string[];
   estimatedCosts: {
-    platformFee: number
-    estimatedGasFee: number
-    totalCost: number
-    costInSOL: number
-  } | null
+    platformFee: number;
+    estimatedGasFee: number;
+    totalCost: number;
+    costInSOL: number;
+  } | null;
 }
 
+// Interface untuk setiap langkah dalam proses transfer
+interface TransferStep {
+  step: number;
+  title: string;
+  status: 'pending' | 'loading' | 'completed' | 'error';
+  message?: string;
+}
+
+// State awal untuk komponen
 const initialTransferState: TransferState = {
   selectedNFT: null,
   recipientAddress: '',
   isTransferring: false,
   transferSteps: [],
   transferResult: null,
-  platformFee: 0.001,
+  platformFee: 0.001, // Default fee
   showConfirmModal: false,
   validationErrors: [],
   estimatedCosts: null
-}
+};
 
 const TransferNFT: React.FC = () => {
-  const { connected, publicKey, sendTransaction, signTransaction } = useWallet()
-  const { 
-    nftCollection, 
-    updateNFT, 
-    refreshCollection, 
+  const { connected, publicKey, sendTransaction, signTransaction } = useWallet();
+  const {
+    nftCollection,
+    updateNFT,
+    refreshCollection,
     isLoading: contextLoading,
-    syncStatus 
-  } = useNFT()
-  
-  // Centralized state management
-  const [transferState, setTransferState] = useState<TransferState>(initialTransferState)
-  
-  // Get program instance
+    syncStatus
+  } = useNFT();
+
+  const [transferState, setTransferState] = useState<TransferState>(initialTransferState);
+
   const program = useMemo(
     () => getProvider(publicKey, signTransaction, sendTransaction),
     [publicKey, signTransaction, sendTransaction]
-  )
-  
-  // Filter NFTs owned by current user dengan memoization
+  );
+
   const ownedNFTs = useMemo(() => {
-    if (!publicKey || !nftCollection.length) return []
-    
-    return nftCollection.filter(nft => 
-      nft.owner === publicKey.toString() && 
-      nft.isActive
-    ).sort((a, b) => b.certificateId - a.certificateId) // Sort by newest first
-  }, [nftCollection, publicKey])
+    if (!publicKey || !nftCollection.length) return [];
+    return nftCollection
+      .filter(nft => nft.owner === publicKey.toString() && nft.isActive)
+      .sort((a, b) => b.certificateId - a.certificateId);
+  }, [nftCollection, publicKey]);
 
-  // Memoized validation untuk recipient address
   const recipientValidation = useMemo(() => {
-    const { recipientAddress } = transferState
-    
+    const { recipientAddress } = transferState;
     if (!recipientAddress.trim()) {
-      return { isValid: false, error: '' }
+      return { isValid: false, error: '' };
     }
-    
     try {
-      new PublicKey(recipientAddress)
+      new PublicKey(recipientAddress);
       if (recipientAddress === publicKey?.toString()) {
-        return { isValid: false, error: 'Cannot transfer to your own wallet' }
+        return { isValid: false, error: 'Tidak dapat mentransfer ke dompet sendiri' };
       }
-      return { isValid: true, error: '' }
+      return { isValid: true, error: '' };
     } catch {
-      return { isValid: false, error: 'Invalid Solana address format' }
+      return { isValid: false, error: 'Format alamat Solana tidak valid' };
     }
-  }, [transferState.recipientAddress, publicKey])
+  }, [transferState.recipientAddress, publicKey]);
 
-  // Memoized form validation
   const isFormValid = useMemo(() => {
-    return !!(
-      transferState.selectedNFT && 
-      recipientValidation.isValid &&
-      !transferState.isTransferring
-    )
-  }, [transferState.selectedNFT, recipientValidation.isValid, transferState.isTransferring])
+    return !!(transferState.selectedNFT && recipientValidation.isValid && !transferState.isTransferring);
+  }, [transferState.selectedNFT, recipientValidation.isValid, transferState.isTransferring]);
 
-  // State update helpers
   const updateTransferState = useCallback((updates: Partial<TransferState>) => {
-    setTransferState(prev => ({ ...prev, ...updates }))
-  }, [])
+    setTransferState(prev => ({ ...prev, ...updates }));
+  }, []);
 
   const updateStep = useCallback((stepNumber: number, status: TransferStep['status'], message?: string) => {
-    setTransferState(prev => ({
-      ...prev,
-      transferSteps: prev.transferSteps.map(step => 
-        step.step === stepNumber 
+    updateTransferState({
+      transferSteps: transferState.transferSteps.map(step =>
+        step.step === stepNumber
           ? { ...step, status, message }
           : step
       )
-    }))
-  }, [])
+    });
+  }, [transferState.transferSteps, updateTransferState]);
 
   const initializeSteps = useCallback(() => {
     const steps: TransferStep[] = [
-      { step: 1, title: 'Pre-transfer validation', status: 'pending' },
-      { step: 2, title: 'Cost estimation and fee calculation', status: 'pending' },
-      { step: 3, title: 'Executing blockchain transfer', status: 'pending' },
-      { step: 4, title: 'Updating local state', status: 'pending' },
-      { step: 5, title: 'Syncing with blockchain', status: 'pending' }
-    ]
-    updateTransferState({ transferSteps: steps })
-  }, [updateTransferState])
+      { step: 1, title: 'Validasi pra-transfer', status: 'pending' },
+      { step: 2, title: 'Estimasi biaya dan kalkulasi fee', status: 'pending' },
+      { step: 3, title: 'Menjalankan transfer di blockchain', status: 'pending' },
+      { step: 4, title: 'Memperbarui state lokal', status: 'pending' },
+      { step: 5, title: 'Sinkronisasi dengan blockchain', status: 'pending' }
+    ];
+    updateTransferState({ transferSteps: steps });
+  }, [updateTransferState]);
 
-  // Reset state when wallet disconnects
   useEffect(() => {
     if (!connected) {
-      setTransferState(initialTransferState)
+      setTransferState(initialTransferState);
     }
-  }, [connected])
+  }, [connected]);
 
-  // Auto-refresh when coming back from other pages
   useEffect(() => {
     if (connected && publicKey && !contextLoading && ownedNFTs.length === 0) {
-      console.log('🔄 No NFTs found, triggering refresh...')
-      refreshCollection(false) // Smart sync
+      refreshCollection(false);
     }
-  }, [connected, publicKey, contextLoading, ownedNFTs.length, refreshCollection])
+  }, [connected, publicKey, contextLoading, ownedNFTs.length, refreshCollection]);
 
-  // Real-time cost estimation when NFT is selected
   useEffect(() => {
-    if (!transferState.selectedNFT || !program) return
-
+    if (!transferState.selectedNFT || !program) return;
     const estimateCosts = async () => {
       try {
-        const costs = await estimateTransferCosts(program, transferState.selectedNFT!.certificateId)
-        updateTransferState({ 
+        const costs = await estimateTransferCosts(program, transferState.selectedNFT!.certificateId);
+        updateTransferState({
           estimatedCosts: costs,
-          platformFee: costs.costInSOL 
-        })
-        console.log('💰 Cost estimation updated:', costs)
+          platformFee: costs.costInSOL
+        });
       } catch (error) {
-        console.warn('⚠️ Could not estimate costs:', error)
+        console.warn('Gagal melakukan estimasi biaya:', error);
       }
-    }
+    };
+    estimateCosts();
+  }, [transferState.selectedNFT, program, updateTransferState]);
 
-    estimateCosts()
-  }, [transferState.selectedNFT, program, updateTransferState])
-
-  // Real-time validation when recipient changes
   useEffect(() => {
-    if (!transferState.recipientAddress || !transferState.selectedNFT || !program) {
-      updateTransferState({ validationErrors: [] })
-      return
+    if (!transferState.recipientAddress || !transferState.selectedNFT || !program || !publicKey) {
+      updateTransferState({ validationErrors: [] });
+      return;
     }
 
     const validateInRealTime = async () => {
       try {
-        const newOwnerPubkey = new PublicKey(transferState.recipientAddress)
+        const newOwnerPubkey = new PublicKey(transferState.recipientAddress);
         const validation = await validateTransferRequest(
-          program, 
-          publicKey!, 
-          transferState.selectedNFT!.certificateId, 
+          program,
+          publicKey,
+          transferState.selectedNFT!.certificateId,
           newOwnerPubkey
-        )
-        
-        updateTransferState({ validationErrors: validation.issues })
+        );
+        updateTransferState({ validationErrors: validation.issues });
       } catch (error) {
-        updateTransferState({ validationErrors: ['Invalid recipient address'] })
+        updateTransferState({ validationErrors: ['Alamat penerima tidak valid'] });
       }
-    }
+    };
 
-    // Debounce validation
-    const timeoutId = setTimeout(validateInRealTime, 500)
-    return () => clearTimeout(timeoutId)
-  }, [transferState.recipientAddress, transferState.selectedNFT, program, publicKey, updateTransferState])
+    const timeoutId = setTimeout(validateInRealTime, 500);
+    return () => clearTimeout(timeoutId);
+  }, [transferState.recipientAddress, transferState.selectedNFT, program, publicKey, updateTransferState]);
 
-  // Event handlers
   const handleNFTSelect = useCallback((nft: CertificateNFT) => {
-    console.log('📋 NFT selected:', nft.certificateId, nft.title)
-    updateTransferState({ 
+    updateTransferState({
       selectedNFT: nft,
       transferResult: null,
       validationErrors: []
-    })
-  }, [updateTransferState])
+    });
+  }, [updateTransferState]);
 
   const handleRecipientChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.trim()
-    updateTransferState({ 
+    const value = e.target.value.trim();
+    updateTransferState({
       recipientAddress: value,
       validationErrors: []
-    })
-  }, [updateTransferState])
+    });
+  }, [updateTransferState]);
 
   const handleTransferSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault()
-    if (!isFormValid) return
-    
-    console.log('📝 Transfer form submitted')
-    updateTransferState({ showConfirmModal: true })
-  }, [isFormValid, updateTransferState])
+    e.preventDefault();
+    if (!isFormValid) return;
+    updateTransferState({ showConfirmModal: true });
+  }, [isFormValid, updateTransferState]);
 
   const handleConfirmTransfer = useCallback(async () => {
-    if (!transferState.selectedNFT || !program || !publicKey) return
+    if (!transferState.selectedNFT || !program || !publicKey) return;
     
-    console.log('🚀 Starting confirmed transfer process')
     updateTransferState({ 
       showConfirmModal: false,
       isTransferring: true,
       transferResult: null
-    })
-    initializeSteps()
+    });
+    initializeSteps();
     
     try {
-      const newOwnerPubkey = new PublicKey(transferState.recipientAddress)
+      const newOwnerPubkey = new PublicKey(transferState.recipientAddress);
       
-      // Step 1: Pre-transfer validation
-      updateStep(1, 'loading', 'Validating transfer request...')
-      
-      const validation = await validateTransferRequest(
-        program, 
-        publicKey, 
-        transferState.selectedNFT.certificateId, 
-        newOwnerPubkey
-      )
-      
+      updateStep(1, 'loading', 'Memvalidasi permintaan transfer...');
+      const validation = await validateTransferRequest(program, publicKey, transferState.selectedNFT.certificateId, newOwnerPubkey);
       if (!validation.isValid) {
-        throw new Error(`Validation failed: ${validation.issues.join(', ')}`)
+        throw new Error(`Validasi gagal: ${validation.issues.join(', ')}`);
       }
-      
-      updateStep(1, 'completed', 'Transfer validation passed')
+      updateStep(1, 'completed', 'Validasi transfer berhasil');
 
-      // Step 2: Cost estimation
-      updateStep(2, 'loading', 'Getting final transfer costs...')
-      
-      const costs = await estimateTransferCosts(program, transferState.selectedNFT.certificateId)
-      updateTransferState({ 
-        estimatedCosts: costs,
-        platformFee: costs.costInSOL
-      })
-      
-      updateStep(2, 'completed', `Platform fee: ${costs.platformFee} lamports`)
+      updateStep(2, 'loading', 'Menghitung biaya transfer final...');
+      const costs = await estimateTransferCosts(program, transferState.selectedNFT.certificateId);
+      updateTransferState({ estimatedCosts: costs, platformFee: costs.costInSOL });
+      updateStep(2, 'completed', `Fee platform: ${costs.platformFee} lamports`);
 
-      // Step 3: Execute blockchain transfer
-      updateStep(3, 'loading', 'Executing transfer on blockchain...')
-      
-      const transferResult = await transferNFT({
-        program,
-        publicKey,
-        certificateId: transferState.selectedNFT.certificateId,
-        newOwner: newOwnerPubkey
-      })
-      
-      console.log('✅ Blockchain transfer completed:', transferResult)
-      updateStep(3, 'completed', 'Blockchain transfer completed')
+      updateStep(3, 'loading', 'Menjalankan transfer di blockchain...');
+      const transferResult = await transferNFT({ program, publicKey, certificateId: transferState.selectedNFT.certificateId, newOwner: newOwnerPubkey });
+      updateStep(3, 'completed', 'Transfer di blockchain selesai');
 
-      // Step 4: Update local state immediately
-      updateStep(4, 'loading', 'Updating local collection...')
-      
-      // Update NFT in context
-      updateNFT(transferState.selectedNFT.certificateId, {
-        owner: transferState.recipientAddress,
-        transferCount: transferResult.transferCount
-      })
-      
-      // Update transfer state with result
-      updateTransferState({ transferResult })
-      
-      updateStep(4, 'completed', 'Local collection updated')
+      updateStep(4, 'loading', 'Memperbarui koleksi lokal...');
+      updateNFT(transferState.selectedNFT.certificateId, { owner: transferState.recipientAddress, transferCount: transferResult.transferCount });
+      updateTransferState({ transferResult });
+      updateStep(4, 'completed', 'Koleksi lokal diperbarui');
 
-      // Step 5: Sync with blockchain for consistency
-      updateStep(5, 'loading', 'Syncing with blockchain...')
-      
-      // Force refresh to ensure state consistency
-      await refreshCollection(true)
-      updateStep(5, 'completed', 'Successfully synced with blockchain')
+      updateStep(5, 'loading', 'Sinkronisasi dengan blockchain...');
+      await refreshCollection(true);
+      updateStep(5, 'completed', 'Berhasil sinkronisasi dengan blockchain');
 
-      // Reset form state
-      updateTransferState({
-        selectedNFT: null,
-        recipientAddress: '',
-        validationErrors: []
-      })
-      
-      console.log(`✅ Transfer completed successfully! TX: ${transferResult.transactionSignature}`)
+      updateTransferState({ selectedNFT: null, recipientAddress: '', validationErrors: [] });
       
     } catch (error) {
-      console.error('❌ Transfer error:', error)
-      const currentStep = transferState.transferSteps.find(step => step.status === 'loading')
+      const errorMessage = error instanceof Error ? error.message : 'Transfer gagal. Silakan coba lagi.';
+      const currentStep = transferState.transferSteps.find(step => step.status === 'loading');
       if (currentStep) {
-        updateStep(currentStep.step, 'error', 
-          error instanceof Error ? error.message : 'Transfer failed. Please try again.'
-        )
+        updateStep(currentStep.step, 'error', errorMessage);
       }
-      
-      // Show user-friendly error
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      alert(`Transfer failed: ${errorMessage}`)
+      alert(`Transfer gagal: ${errorMessage}`);
     } finally {
-      updateTransferState({ isTransferring: false })
+      updateTransferState({ isTransferring: false });
     }
-  }, [
-    transferState.selectedNFT, 
-    transferState.recipientAddress,
-    transferState.transferSteps,
-    program, 
-    publicKey, 
-    updateTransferState, 
-    initializeSteps, 
-    updateStep, 
-    updateNFT, 
-    refreshCollection
-  ])
-
+  }, [program, publicKey, refreshCollection, transferState.recipientAddress, transferState.selectedNFT, transferState.transferSteps, updateNFT, updateTransferState, updateStep, initializeSteps]);
+  
   const handleCancelTransfer = useCallback(() => {
-    console.log('❌ Transfer cancelled by user')
-    updateTransferState({ showConfirmModal: false })
-  }, [updateTransferState])
+    updateTransferState({ showConfirmModal: false });
+  }, [updateTransferState]);
 
   const resetForm = useCallback(() => {
-    console.log('🔄 Resetting transfer form')
     setTransferState({
       ...initialTransferState,
-      // Keep estimated costs if available
       estimatedCosts: transferState.estimatedCosts
-    })
-  }, [transferState.estimatedCosts])
-
-  // Utility functions
-  const formatDate = useCallback((dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }, [])
+    });
+  }, [transferState.estimatedCosts]);
 
   const getValidationIcon = useCallback(() => {
-    if (!transferState.recipientAddress) return null
-    
+    if (!transferState.recipientAddress) return null;
     if (recipientValidation.isValid) {
       return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="validation-success-icon">
           <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
         </svg>
-      )
+      );
     } else {
       return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="validation-error-icon">
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
         </svg>
-      )
+      );
     }
-  }, [transferState.recipientAddress, recipientValidation])
+  }, [transferState.recipientAddress, recipientValidation]);
 
   // Loading state when context is syncing
   if (contextLoading && syncStatus === 'syncing') {

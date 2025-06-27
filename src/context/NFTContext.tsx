@@ -121,10 +121,8 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       const storedNFTs = localStorage.getItem(STORAGE_KEY)
       if (storedNFTs) {
         const parsedNFTs = JSON.parse(storedNFTs) as CertificateNFT[]
-        console.log('📱 Loaded NFTs from localStorage:', parsedNFTs.length)
         setNftCollection(parsedNFTs)
       } else {
-        console.log('📱 No NFTs found in localStorage')
         setNftCollection([])
       }
     } catch (error) {
@@ -136,7 +134,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
   const saveNFTsToStorage = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nftCollection))
-      console.log('💾 Saved NFTs to localStorage:', nftCollection.length)
     } catch (error) {
       console.error('❌ Error saving NFTs to storage:', error)
     }
@@ -188,18 +185,10 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       const state = await getFreshProgramState(program)
       const currentCertificateCount = state.certificateCount
       
-      console.log('🔍 Checking for blockchain reset:')
-      console.log('  - Current blockchain count:', currentCertificateCount)
-      console.log('  - Last known count:', lastKnownCertificateCount)
-      console.log('  - Local NFTs count:', nftCollection.length)
-      
       // If blockchain count is 0 but we have local NFTs and previously had a higher count
       if (currentCertificateCount === 0 && 
           lastKnownCertificateCount > 0 && 
           nftCollection.length > 0) {
-        console.log('🚨 BLOCKCHAIN RESET DETECTED!')
-        console.log('  - Blockchain certificate count went from', lastKnownCertificateCount, 'to 0')
-        console.log('  - LocalStorage still has', nftCollection.length, 'NFTs')
         return true
       }
       
@@ -207,8 +196,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       if (currentCertificateCount > 0 && 
           lastKnownCertificateCount > currentCertificateCount &&
           (lastKnownCertificateCount - currentCertificateCount) >= nftCollection.length) {
-        console.log('🚨 POSSIBLE BLOCKCHAIN RESET DETECTED!')
-        console.log('  - Certificate count dropped significantly')
         return true
       }
       
@@ -226,8 +213,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
 
   // Clear all local data when blockchain reset is detected
   const handleBlockchainReset = () => {
-    console.log('🧹 Handling blockchain reset - clearing local data...')
-    
     // Clear localStorage
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(SYNC_TIME_KEY)
@@ -237,8 +222,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     setNftCollection([])
     setLastSyncTime(null)
     setLastKnownCertificateCount(0)
-    
-    console.log('✅ Local data cleared due to blockchain reset')
   }
 
   // Convert blockchain NFT to app NFT format
@@ -271,14 +254,12 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     try {
       setIsLoading(true)
       setSyncStatus('syncing')
-      console.log('🔄 Starting smart sync with blockchain...')
       
       const program = getProviderReadonly()
       
       // Check if program is initialized
       const programInitialized = await isProgramInitialized(program)
       if (!programInitialized) {
-        console.log('⚠️ Program not initialized - keeping localStorage data')
         setSyncStatus('error')
         return
       }
@@ -294,7 +275,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       
       // Fetch NFTs from blockchain for this user
       const blockchainNFTs = await fetchUserNFTs(program, publicKey)
-      console.log(`📦 Found ${blockchainNFTs.length} NFTs on blockchain for user`)
       
       // Update last known certificate count after successful fetch
       const state = await getFreshProgramState(program)
@@ -326,10 +306,7 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
         if (!existsInBlockchain) {
           // Check if this NFT is still owned by current user
           if (localNFT.owner === publicKey.toString()) {
-            console.log(`📋 Keeping localStorage NFT #${localNFT.certificateId} (not yet on blockchain)`)
             mergedNFTs.push(localNFT)
-          } else {
-            console.log(`🗑️ Removing localStorage NFT #${localNFT.certificateId} (no longer owned)`)
           }
         }
       })
@@ -341,11 +318,9 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       setNftCollection(mergedNFTs)
       saveLastSyncTime(new Date())
       setSyncStatus('success')
-      console.log(`✅ Smart sync complete: ${mergedNFTs.length} total NFTs`)
       
     } catch (error) {
       console.error('❌ Error in smart sync with blockchain:', error)
-      console.log('📱 Keeping localStorage data due to sync error')
       setSyncStatus('error')
     } finally {
       setIsLoading(false)
@@ -359,14 +334,12 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     try {
       setIsLoading(true)
       setSyncStatus('syncing')
-      console.log('🔄 Force refreshing from blockchain...')
       
       const program = getProviderReadonly()
       
       // Check program initialization
       const programInitialized = await isProgramInitialized(program)
       if (!programInitialized) {
-        console.log('⚠️ Program not initialized - cannot force refresh')
         setSyncStatus('error')
         return
       }
@@ -413,7 +386,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       setNftCollection(convertedNFTs)
       saveLastSyncTime(new Date())
       setSyncStatus('success')
-      console.log(`🔄 Force refresh complete: ${convertedNFTs.length} NFTs from blockchain`)
       
     } catch (error) {
       console.error('❌ Error force refreshing:', error)
@@ -425,8 +397,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
 
   // Public refresh function with options
   const refreshCollection = async (forceFromBlockchain = false) => {
-    console.log(`🔄 Manual refresh requested (force: ${forceFromBlockchain})`)
-    
     if (forceFromBlockchain) {
       await forceRefreshFromBlockchain()
     } else {
@@ -461,11 +431,9 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       // Check if NFT already exists to avoid duplicates
       const exists = prev.find(nft => nft.certificateId === newNFT.certificateId)
       if (exists) {
-        console.log('🔄 NFT already exists in collection, updating...')
         const updated = prev.map(nft => nft.certificateId === newNFT.certificateId ? newNFT : nft)
         return updated.sort((a, b) => b.certificateId - a.certificateId)
       } else {
-        console.log('➕ Adding new NFT to collection')
         const newCollection = [newNFT, ...prev]
         return newCollection.sort((a, b) => b.certificateId - a.certificateId)
       }
@@ -473,12 +441,6 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     
     // Update last known certificate count since we added a new one
     setLastKnownCertificateCount(prev => Math.max(prev, transactionResult.certificateId))
-    
-    console.log('✅ NFT added to collection:', {
-      id: newNFT.certificateId,
-      title: newNFT.title,
-      owner: newNFT.owner.slice(0, 8) + '...'
-    })
   }
 
   // Update existing NFT
@@ -490,14 +452,11 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
           : nft
       )
     )
-    
-    console.log(`🔄 Updated NFT #${certificateId}:`, updates)
   }
 
   // Remove NFT from collection
   const removeNFT = (certificateId: number) => {
     setNftCollection(prev => prev.filter(nft => nft.certificateId !== certificateId))
-    console.log(`🗑️ Removed NFT #${certificateId} from collection`)
   }
 
   // Get NFT by ID
@@ -520,32 +479,26 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     setLastSyncTime(null)
     setLastKnownCertificateCount(0)
     setSyncStatus('idle')
-    console.log('🗑️ Collection cleared')
   }
 
   // Debug blockchain state (for development)
   const debugBlockchainState = async () => {
     if (!connected || !publicKey) {
-      console.log('🔍 Debug: Wallet not connected')
       return
     }
     
     try {
       const program = getProviderReadonly()
       const debugInfo = await debugProgramState(program)
-      console.log('🔍 Debug blockchain state:', debugInfo)
       
       if (debugInfo.initialized) {
         const userNFTs = await fetchUserNFTs(program, publicKey)
-        console.log('🔍 Debug user NFTs from blockchain:', userNFTs)
         
         // Debug reset detection
         const isReset = await detectBlockchainReset(program)
-        console.log('🔍 Debug reset detection:', isReset)
       }
       
     } catch (error) {
-      console.log('🔍 Debug error:', error)
     }
   }
 

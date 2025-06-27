@@ -9,7 +9,7 @@ use instructions::*;
 #[allow(unused_imports)]
 use states::*;
 
-declare_id!("GqmvFY26B6xAs8wYsKP1F1W5QvcaTUXDqJVNjZgutkXe");
+declare_id!("Aei8GrZ6qdq5pFZJkrDztVqKFe7oLdoiyS2KCxj7M13n");
 
 #[program]
 pub mod cernft {

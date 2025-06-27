@@ -104,7 +104,6 @@ export const getProvider = (
   sendTransaction: any
 ): Program<Cernft> | null => {
   if (!publicKey || !signTransaction) {
-    console.error('Wallet not connected or missing signTransaction')
     return null
   }
 
@@ -140,52 +139,6 @@ export const getProviderReadonly = (): Program<Cernft> => {
   return new Program<Cernft>(idl as any, provider)
 }
 
-// Helper Functions
-export const checkWalletBalance = async (
-  publicKey: PublicKey
-): Promise<{ balance: number; hasEnoughSOL: boolean; requiredSOL: number }> => {
-  try {
-    const connection = new Connection(RPC_URL, 'confirmed')
-    const balance = await connection.getBalance(publicKey)
-    const balanceInSOL = balance / LAMPORTS_PER_SOL
-    const requiredSOL = 0.01 // Estimate for transaction fees
-    
-    return {
-      balance: balanceInSOL,
-      hasEnoughSOL: balanceInSOL >= requiredSOL,
-      requiredSOL
-    }
-  } catch (error) {
-    console.error('Error checking wallet balance:', error)
-    return {
-      balance: 0,
-      hasEnoughSOL: false,
-      requiredSOL: 0.01
-    }
-  }
-}
-
-export const requestAirdrop = async (publicKey: PublicKey): Promise<boolean> => {
-  try {
-    if (CLUSTER !== 'devnet') {
-      throw new Error('Airdrop only available on devnet')
-    }
-
-    const connection = new Connection(RPC_URL, 'confirmed')
-    const airdropSignature = await connection.requestAirdrop(
-      publicKey,
-      2 * LAMPORTS_PER_SOL // Request 2 SOL
-    )
-    
-    await connection.confirmTransaction(airdropSignature, 'finalized')
-    console.log('Airdrop successful:', airdropSignature)
-    return true
-  } catch (error) {
-    console.error('Airdrop failed:', error)
-    return false
-  }
-}
-
 // Program State Functions
 export const isProgramInitialized = async (program: Program<Cernft>): Promise<boolean> => {
   try {
@@ -197,7 +150,6 @@ export const isProgramInitialized = async (program: Program<Cernft>): Promise<bo
     const state = await program.account.programState.fetch(programStatePda)
     return state.initialized
   } catch (error) {
-    console.log('Program not initialized:', error)
     return false
   }
 }
@@ -230,7 +182,6 @@ export const initializeProgram = async (
     // Check balance before initialization
     const balanceInfo = await checkWalletBalance(publicKey)
     if (!balanceInfo.hasEnoughSOL && CLUSTER === 'devnet') {
-      console.log('Requesting airdrop for program initialization...')
       await requestAirdrop(publicKey)
     }
 
@@ -256,7 +207,6 @@ export const initializeProgram = async (
     
     return tx
   } catch (error) {
-    console.error('Error initializing program:', error)
     throw error
   }
 }
@@ -267,12 +217,9 @@ export const fetchActiveNFTs = async (
   ownerPublicKey?: PublicKey
 ): Promise<BlockchainNFT[]> => {
   try {
-    console.log('🔍 Fetching active NFTs from blockchain...')
-    
     // Check if program is initialized first
     const programInitialized = await isProgramInitialized(program)
     if (!programInitialized) {
-      console.log('⚠️ Program not initialized')
       return []
     }
     
@@ -280,10 +227,7 @@ export const fetchActiveNFTs = async (
     const state = await getFreshProgramState(program)
     const totalCertificates = state.certificateCount
     
-    console.log(`📊 Total certificates in program state: ${totalCertificates}`)
-    
     if (totalCertificates === 0) {
-      console.log('📭 No certificates found in program state')
       return []
     }
     
@@ -308,7 +252,6 @@ export const fetchActiveNFTs = async (
         
         // Hanya ambil NFT yang aktif
         if (!nftData.isActive) {
-          console.log(`⚠️ Certificate #${i} is inactive, skipping`)
           continue
         }
         
@@ -328,20 +271,16 @@ export const fetchActiveNFTs = async (
         }
         
         activeNFTs.push(blockchainNFT)
-        console.log(`✅ Found active NFT #${i}: "${nftData.title}" (Owner: ${nftData.owner.toString().slice(0, 8)}...)`)
         
       } catch (error) {
         // NFT dengan ID ini tidak ada atau error, skip
-        console.log(`❌ Certificate #${i} not found or error: ${error}`)
         continue
       }
     }
     
-    console.log(`🎯 Found ${activeNFTs.length} active NFTs total`)
     return activeNFTs
     
   } catch (error) {
-    console.error('💥 Error fetching active NFTs:', error)
     throw new Error(`Failed to fetch NFTs from blockchain: ${error}`)
   }
 }
@@ -350,7 +289,6 @@ export const fetchUserNFTs = async (
   program: Program<Cernft>,
   userPublicKey: PublicKey
 ): Promise<BlockchainNFT[]> => {
-  console.log(`👤 Fetching NFTs for user: ${userPublicKey.toString().slice(0, 8)}...`)
   return fetchActiveNFTs(program, userPublicKey)
 }
 
@@ -381,7 +319,6 @@ export const fetchSingleNFT = async (
       ipfsUri: nftData.ipfsUri
     }
   } catch (error) {
-    console.log(`NFT #${certificateId} not found:`, error)
     return null
   }
 }
@@ -394,13 +331,10 @@ export const createNft = async (
 
   try {
     // Check wallet balance first
-    console.log('💰 Checking wallet balance...')
     const balanceInfo = await checkWalletBalance(publicKey)
-    console.log(`💰 Wallet balance: ${balanceInfo.balance} SOL`)
     
     if (!balanceInfo.hasEnoughSOL) {
       if (CLUSTER === 'devnet') {
-        console.log('💸 Insufficient balance. Requesting airdrop...')
         const airdropSuccess = await requestAirdrop(publicKey)
         if (!airdropSuccess) {
           throw new Error(
@@ -408,7 +342,6 @@ export const createNft = async (
             `Please visit https://faucet.solana.com/ to get devnet SOL.`
           )
         }
-        console.log('✅ Airdrop completed. Proceeding with transaction...')
       } else {
         throw new Error(
           `Insufficient SOL balance: ${balanceInfo.balance} SOL. Required: ${balanceInfo.requiredSOL} SOL. ` +
@@ -419,19 +352,14 @@ export const createNft = async (
 
     // Validate IPFS URI format before sending to blockchain
     if (!ipfsUri.startsWith('ipfs://') && !ipfsUri.startsWith('https://ipfs.io/ipfs/')) {
-      console.error('❌ Invalid IPFS URI format:', ipfsUri)
       throw new Error('IPFS URI must start with "ipfs://" or "https://ipfs.io/ipfs/"')
     }
-
-    console.log('✅ IPFS URI format validated:', ipfsUri)
 
     // Get program state PDA
     const [programStatePda] = PublicKey.findProgramAddressSync(
       [Buffer.from('program_state')],
       program.programId
     )
-
-    console.log('🏛️ Program State PDA:', programStatePda.toString())
 
     // Fetch current state to get next certificate ID (with forced refresh)
     let state
@@ -440,26 +368,19 @@ export const createNft = async (
       await program.provider.connection.getRecentBlockhash('finalized')
       
       state = await program.account.programState.fetch(programStatePda)
-      console.log('📊 Current certificate count:', state.certificateCount.toString())
       
       // Double-check by refetching if count seems wrong
       if (state.certificateCount.toNumber() === 0) {
-        console.log('🔄 Certificate count is 0, checking if this is correct...')
-        
-        // Small delay and refetch
         await new Promise(resolve => setTimeout(resolve, 1000))
         state = await program.account.programState.fetch(programStatePda)
-        console.log('🔄 Refetched certificate count:', state.certificateCount.toString())
       }
       
     } catch (error) {
-      console.error('❌ Error fetching program state. Program may need to be initialized.')
       throw new Error('Program state not found. Please ensure the program is initialized.')
     }
 
     // Calculate next certificate ID
     const certificateId = state.certificateCount.add(new BN(1))
-    console.log('🆔 Next certificate ID:', certificateId.toString())
 
     // Generate certificate NFT PDA
     const [certNftPda] = PublicKey.findProgramAddressSync(
@@ -467,15 +388,9 @@ export const createNft = async (
       program.programId
     )
 
-    console.log('🎫 Certificate NFT PDA:', certNftPda.toString())
-
     // Check if the NFT account already exists
     try {
-      const existingNft = await program.account.certificateNft.fetch(certNftPda)
-      console.log('⚠️ NFT already exists:', existingNft)
-      
-      // If NFT exists, we need to use a different approach
-      // This might happen if a previous transaction partially succeeded
+      await program.account.certificateNft.fetch(certNftPda)
       throw new Error(
         `Certificate with ID ${certificateId.toString()} already exists. ` +
         'This might be due to a previous transaction that partially completed. ' +
@@ -483,7 +398,6 @@ export const createNft = async (
       )
     } catch (fetchError) {
       // If fetch fails, the account doesn't exist (which is what we want)
-      console.log('✅ NFT account does not exist yet. Proceeding with creation...')
     }
 
     // Check program state is mutable
@@ -492,15 +406,11 @@ export const createNft = async (
       if (!programStateAccount) {
         throw new Error('Program state account not found')
       }
-      console.log('✅ Program state account confirmed')
     } catch (error) {
-      console.error('❌ Program state validation failed:', error)
       throw new Error('Program state is not properly initialized')
     }
 
     // Execute the transaction with retry logic
-    console.log('🚀 Executing create NFT transaction...')
-    
     let retryCount = 0
     const maxRetries = 3
     
@@ -520,33 +430,22 @@ export const createNft = async (
             commitment: 'processed'
           })
 
-        console.log('📤 Transaction sent:', tx)
-
         // Wait for confirmation
         const connection = new Connection(
           program.provider.connection.rpcEndpoint,
           'confirmed'
         )
         
-        console.log('⏳ Waiting for transaction confirmation...')
         const confirmation = await connection.confirmTransaction(tx, 'finalized')
         
         if (confirmation.value.err) {
           throw new Error(`Transaction failed: ${confirmation.value.err}`)
         }
         
-        console.log('✅ Transaction confirmed!')
-
         // Verify the NFT was created successfully
         try {
-          const createdNft = await program.account.certificateNft.fetch(certNftPda)
-          console.log('✅ NFT creation verified:', {
-            id: createdNft.certificateId.toString(),
-            title: createdNft.title,
-            owner: createdNft.owner.toString().slice(0, 8) + '...'
-          })
+          await program.account.certificateNft.fetch(certNftPda)
         } catch (verifyError) {
-          console.warn('⚠️ Could not verify NFT creation, but transaction succeeded')
         }
 
         return {
@@ -557,7 +456,6 @@ export const createNft = async (
         
       } catch (txError) {
         retryCount++
-        console.log(`❌ Transaction attempt ${retryCount} failed:`, txError)
         
         if (retryCount >= maxRetries) {
           throw txError
@@ -571,8 +469,6 @@ export const createNft = async (
     throw new Error('Transaction failed after maximum retries')
 
   } catch (error) {
-    console.error('💥 Error creating NFT:', error)
-    
     // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message.includes('already in use') || error.message.includes('already exists')) {
@@ -605,12 +501,11 @@ export const createNft = async (
   }
 }
 
+// NFT Verify Function
 export const verifyCertificateById = async (
   certificateId: number
 ): Promise<CertificateVerificationResult | null> => {
   try {
-    console.log(`🔍 Verifying certificate ID: ${certificateId}`)
-    
     const program = getProviderReadonly()
     
     // Check if program is initialized
@@ -643,11 +538,9 @@ export const verifyCertificateById = async (
       ipfsUri: certificateData.ipfsUri
     }
 
-    console.log('✅ Certificate verification successful:', result)
     return result
 
   } catch (error) {
-    console.log(`❌ Certificate ${certificateId} not found or error:`, error)
     return null
   }
 }
@@ -656,8 +549,6 @@ export const verifyCertificateByFileHash = async (
   fileHash: string
 ): Promise<CertificateVerificationResult[]> => {
   try {
-    console.log(`🔍 Searching certificates by file hash: ${fileHash.slice(0, 16)}...`)
-    
     const program = getProviderReadonly()
     
     // Check if program is initialized
@@ -669,8 +560,6 @@ export const verifyCertificateByFileHash = async (
     // Get total certificate count
     const state = await getFreshProgramState(program)
     const totalCertificates = state.certificateCount
-    
-    console.log(`📊 Searching through ${totalCertificates} certificates...`)
     
     const matchingCertificates: CertificateVerificationResult[] = []
     
@@ -684,18 +573,7 @@ export const verifyCertificateByFileHash = async (
         
         const certificateData = await program.account.certificateNft.fetch(certNftPda)
         
-        // For file hash comparison, we would need to fetch metadata from IPFS
-        // and compare the stored file hash. This is a complex operation that
-        // requires fetching metadata for each certificate.
-        
-        // For now, we'll implement a simplified version
-        console.log(`🔍 Checking certificate ${i}...`)
-        
         // TODO: Implement actual file hash comparison with IPFS metadata
-        // This would involve:
-        // 1. Fetch metadata from IPFS using certificateData.ipfsUri
-        // 2. Extract file hash from metadata attributes
-        // 3. Compare with provided fileHash
         
       } catch (error) {
         // Certificate doesn't exist, continue
@@ -703,11 +581,9 @@ export const verifyCertificateByFileHash = async (
       }
     }
     
-    console.log(`🎯 Found ${matchingCertificates.length} matching certificates`)
     return matchingCertificates
     
   } catch (error) {
-    console.error('💥 Error searching certificates by file hash:', error)
     throw error
   }
 }
@@ -717,8 +593,6 @@ export const verifyFileHashAgainstCertificate = async (
   fileHash: string
 ): Promise<FileHashVerificationResult> => {
   try {
-    console.log(`🔍 Verifying file hash against certificate ${certificateId}`)
-    
     // First verify the certificate exists
     const certificateResult = await verifyCertificateById(certificateId)
     
@@ -735,8 +609,6 @@ export const verifyFileHashAgainstCertificate = async (
     try {
       const ipfsHash = certificateResult.ipfsUri.replace('ipfs://', '')
       const metadataUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`
-      
-      console.log('🔍 Fetching metadata from IPFS:', metadataUrl)
       
       const response = await fetch(metadataUrl)
       if (!response.ok) {
@@ -776,7 +648,6 @@ export const verifyFileHashAgainstCertificate = async (
       }
       
     } catch (metadataError) {
-      console.warn('⚠️ Could not fetch or parse metadata:', metadataError)
       return {
         certificateExists: true,
         fileHashMatches: false,
@@ -786,7 +657,6 @@ export const verifyFileHashAgainstCertificate = async (
     }
     
   } catch (error) {
-    console.error('💥 Error verifying file hash against certificate:', error)
     return {
       certificateExists: false,
       fileHashMatches: false,
@@ -800,8 +670,6 @@ export const getCertificatesWithVerificationInfo = async (
   walletAddress: string
 ): Promise<CertificateVerificationResult[]> => {
   try {
-    console.log(`🔍 Getting certificates with verification info for wallet: ${walletAddress.slice(0, 8)}...`)
-    
     const program = getProviderReadonly()
     const walletPublicKey = new PublicKey(walletAddress)
     
@@ -824,11 +692,9 @@ export const getCertificatesWithVerificationInfo = async (
       ipfsUri: nft.ipfsUri
     }))
     
-    console.log(`✅ Found ${verificationResults.length} certificates for wallet`)
     return verificationResults
     
   } catch (error) {
-    console.error('💥 Error getting certificates with verification info:', error)
     throw error
   }
 }
@@ -853,13 +719,10 @@ export const performComprehensiveVerification = async (
   let details: CertificateVerificationResult | null = null
   
   try {
-    console.log(`🔍 Performing comprehensive verification for certificate ${certificateId}`)
-    
     // 1. Blockchain verification
     details = await verifyCertificateById(certificateId)
     if (details) {
       blockchainVerification = true
-      console.log('✅ Blockchain verification passed')
       
       // 2. Check if certificate is active
       if (!details.isActive) {
@@ -874,14 +737,12 @@ export const performComprehensiveVerification = async (
         const response = await fetch(metadataUrl)
         if (response.ok) {
           ipfsVerification = true
-          console.log('✅ IPFS verification passed')
           
           // 4. Metadata integrity check
           try {
             const metadata = await response.json()
             if (metadata.name && metadata.description && metadata.attributes) {
               metadataIntegrity = true
-              console.log('✅ Metadata integrity check passed')
               
               // Check if metadata matches blockchain data
               if (metadata.name !== details.title) {
@@ -907,7 +768,6 @@ export const performComprehensiveVerification = async (
       try {
         new PublicKey(details.owner)
         ownershipVerification = true
-        console.log('✅ Ownership verification passed')
       } catch (ownerError) {
         issues.push('Owner address is not a valid Solana public key')
       }
@@ -916,7 +776,6 @@ export const performComprehensiveVerification = async (
       try {
         new PublicKey(details.creator)
         issuerVerification = true
-        console.log('✅ Issuer verification passed')
       } catch (issuerError) {
         issues.push('Issuer/Creator address is not a valid Solana public key')
       }
@@ -924,8 +783,6 @@ export const performComprehensiveVerification = async (
     } else {
       issues.push('Certificate does not exist on blockchain')
     }
-    
-    console.log(`🔍 Comprehensive verification complete. Issues found: ${issues.length}`)
     
     return {
       blockchainVerification,
@@ -938,7 +795,6 @@ export const performComprehensiveVerification = async (
     }
     
   } catch (error) {
-    console.error('💥 Error in comprehensive verification:', error)
     issues.push(`Verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     
     return {
@@ -956,8 +812,6 @@ export const performComprehensiveVerification = async (
 export const batchVerifyCertificates = async (
   certificateIds: number[]
 ): Promise<Map<number, CertificateVerificationResult | null>> => {
-  console.log(`🔍 Batch verifying ${certificateIds.length} certificates`)
-  
   const results = new Map<number, CertificateVerificationResult | null>()
   
   // Use Promise.allSettled to handle failures gracefully
@@ -966,7 +820,6 @@ export const batchVerifyCertificates = async (
       const result = await verifyCertificateById(id)
       return { id, result }
     } catch (error) {
-      console.warn(`⚠️ Failed to verify certificate ${id}:`, error)
       return { id, result: null }
     }
   })
@@ -980,7 +833,6 @@ export const batchVerifyCertificates = async (
     }
   })
   
-  console.log(`✅ Batch verification complete. ${results.size} results processed`)
   return results
 }
 
@@ -988,8 +840,6 @@ export const searchCertificatesByIssuer = async (
   issuerName: string
 ): Promise<CertificateVerificationResult[]> => {
   try {
-    console.log(`🔍 Searching certificates by issuer: ${issuerName}`)
-    
     const program = getProviderReadonly()
     
     // Check if program is initialized
@@ -1001,8 +851,6 @@ export const searchCertificatesByIssuer = async (
     // Get total certificate count
     const state = await getFreshProgramState(program)
     const totalCertificates = state.certificateCount
-    
-    console.log(`📊 Searching through ${totalCertificates} certificates for issuer: ${issuerName}`)
     
     const matchingCertificates: CertificateVerificationResult[] = []
     
@@ -1042,11 +890,9 @@ export const searchCertificatesByIssuer = async (
       }
     }
     
-    console.log(`🎯 Found ${matchingCertificates.length} certificates from issuer: ${issuerName}`)
     return matchingCertificates
     
   } catch (error) {
-    console.error('💥 Error searching certificates by issuer:', error)
     throw error
   }
 }
@@ -1063,8 +909,6 @@ export const getWalletVerificationStats = async (
   newestCertificate?: Date
 }> => {
   try {
-    console.log(`📊 Getting verification stats for wallet: ${walletAddress.slice(0, 8)}...`)
-    
     const certificates = await getCertificatesWithVerificationInfo(walletAddress)
     
     const stats = {
@@ -1081,11 +925,9 @@ export const getWalletVerificationStats = async (
         : undefined
     }
     
-    console.log(`📊 Wallet verification stats:`, stats)
     return stats
     
   } catch (error) {
-    console.error('💥 Error getting wallet verification stats:', error)
     throw error
   }
 }
@@ -1104,8 +946,6 @@ export const validateCertificateOwnershipChain = async (
   issues: string[]
 }> => {
   try {
-    console.log(`🔍 Validating ownership chain for certificate ${certificateId}`)
-    
     const certificate = await verifyCertificateById(certificateId)
     const issues: string[] = []
     
@@ -1151,8 +991,6 @@ export const validateCertificateOwnershipChain = async (
       // timestamp would come from transaction records if stored
     }))
     
-    console.log(`✅ Ownership chain validation complete. Valid: ${isValid}`)
-    
     return {
       isValid,
       currentOwner: certificate.owner,
@@ -1162,7 +1000,6 @@ export const validateCertificateOwnershipChain = async (
     }
     
   } catch (error) {
-    console.error('💥 Error validating ownership chain:', error)
     return {
       isValid: false,
       currentOwner: '',
@@ -1185,8 +1022,6 @@ export const generateVerificationReport = async (
   recommendations: string[]
 }> => {
   try {
-    console.log(`📋 Generating verification report for certificate ${certificateId}`)
-    
     const [comprehensiveCheck, ownershipValidation] = await Promise.all([
       performComprehensiveVerification(certificateId),
       validateCertificateOwnershipChain(certificateId)
@@ -1241,11 +1076,220 @@ export const generateVerificationReport = async (
       recommendations
     }
     
-    console.log(`📋 Verification report generated. Passed: ${verificationPassed}`)
     return report
     
   } catch (error) {
-    console.error('💥 Error generating verification report:', error)
+    throw error
+  }
+}
+
+// NFT Transfer Function
+export const transferNFT = async (
+  params: TransferNFTParams
+): Promise<TransferNFTResult> => {
+  const { program, publicKey, certificateId, newOwner } = params
+
+  try {
+    // Step 1: Check wallet balance
+    const balanceInfo = await checkWalletBalance(publicKey)
+    
+    if (!balanceInfo.hasEnoughSOL) {
+      if (CLUSTER === 'devnet') {
+        const airdropSuccess = await requestAirdrop(publicKey)
+        if (!airdropSuccess) {
+          throw new Error(
+            `Insufficient SOL balance: ${balanceInfo.balance} SOL. ` +
+            `Please visit https://faucet.solana.com/ to get devnet SOL.`
+          )
+        }
+      } else {
+        throw new Error(
+          `Insufficient SOL balance: ${balanceInfo.balance} SOL. ` +
+          `Required: ${balanceInfo.requiredSOL} SOL. Please add SOL to your wallet.`
+        )
+      }
+    }
+
+    // Step 2: Get program state PDA
+    const [programStatePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('program_state')],
+      program.programId
+    )
+
+    // Step 3: Get program state to check platform fee
+    let programState
+    try {
+      programState = await program.account.programState.fetch(programStatePda)
+    } catch (error) {
+      throw new Error('Program state not found. Please ensure the program is initialized.')
+    }
+
+    // Step 4: Generate certificate NFT PDA
+    const [certNftPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('certificate_nft'), new BN(certificateId).toArrayLike(Buffer, 'le', 8)],
+      program.programId
+    )
+
+    // Step 5: Get current NFT data for validation
+    let currentNFT
+    try {
+      currentNFT = await program.account.certificateNft.fetch(certNftPda)
+    } catch (error) {
+      throw new Error(`Certificate ${certificateId} not found on blockchain`)
+    }
+    
+    // Step 6: Validate ownership and status
+    if (currentNFT.owner.toString() !== publicKey.toString()) {
+      throw new Error(
+        `You are not the owner of this NFT. ` +
+        `Current owner: ${currentNFT.owner.toString()}, ` +
+        `Your address: ${publicKey.toString()}`
+      )
+    }
+    
+    if (!currentNFT.isActive) {
+      throw new Error('This NFT is not active and cannot be transferred')
+    }
+
+    if (newOwner.toString() === publicKey.toString()) {
+      throw new Error('Cannot transfer to the same wallet address')
+    }
+
+    // Step 7: Generate transaction PDA
+    const [transactionPda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('transaction'),
+        new BN(certificateId).toArrayLike(Buffer, 'le', 8),
+        publicKey.toBuffer(),
+        Buffer.from([currentNFT.transferCount])
+      ],
+      program.programId
+    )
+
+    // Step 8: Check if transaction PDA already exists (duplicate transfer protection)
+    try {
+      const existingTransaction = await program.account.transaction.fetch(transactionPda)
+      if (existingTransaction) {
+      }
+    } catch (error) {
+      // Transaction doesn't exist yet, which is expected for new transfers
+    }
+
+    // Step 9: Execute the transfer transaction
+    let retryCount = 0
+    const maxRetries = 3
+    
+    while (retryCount < maxRetries) {
+      try {
+        const tx = await program.methods
+          .transferNft(new BN(certificateId), newOwner)
+          .accountsPartial({
+            programState: programStatePda,
+            certNft: certNftPda,
+            owner: publicKey,
+            platformAccount: programState.platformAddress,
+            transaction: transactionPda,
+            systemProgram: SystemProgram.programId,
+            rent: SYSVAR_RENT_PUBKEY
+          })
+          .rpc({
+            skipPreflight: false,
+            preflightCommitment: 'processed',
+            commitment: 'processed'
+          })
+
+        // Step 10: Wait for confirmation
+        const connection = new Connection(
+          program.provider.connection.rpcEndpoint,
+          'confirmed'
+        )
+        
+        const confirmation = await connection.confirmTransaction(tx, 'finalized')
+        
+        if (confirmation.value.err) {
+          throw new Error(`Transfer transaction failed: ${confirmation.value.err}`)
+        }
+        
+        // Step 11: Verify the transfer was successful
+        try {
+          const updatedNFT = await program.account.certificateNft.fetch(certNftPda)
+          
+          if (updatedNFT.owner.toString() !== newOwner.toString()) {
+            throw new Error('Transfer verification failed: Owner was not updated correctly')
+          }
+          
+          if (updatedNFT.transferCount !== currentNFT.transferCount + 1) {
+          }
+          
+        } catch (verifyError) {
+        }
+
+        // Step 12: Get transaction details for gas calculation
+        let gasUsed = 0
+        try {
+          const txDetails = await connection.getTransaction(tx, {
+            commitment: 'confirmed'
+          })
+          gasUsed = txDetails?.meta?.fee || 0
+        } catch (gasError) {
+        }
+
+        // Step 13: Get transaction record for additional verification
+        try {
+          await program.account.transaction.fetch(transactionPda)
+        } catch (recordError) {
+        }
+
+        // Return successful result
+        return {
+          transactionSignature: tx,
+          certificateId: certificateId,
+          previousOwner: publicKey.toString(),
+          newOwner: newOwner.toString(),
+          platformFee: programState.platformFee.toNumber(),
+          gasUsed: gasUsed,
+          transferCount: currentNFT.transferCount + 1
+        }
+        
+      } catch (txError) {
+        retryCount++
+        
+        if (retryCount >= maxRetries) {
+          throw txError
+        }
+        
+        // Wait before retry with exponential backoff
+        const waitTime = 1000 * Math.pow(2, retryCount - 1)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
+      }
+    }
+
+    throw new Error('Transfer failed after maximum retries')
+
+  } catch (error) {
+    // Provide specific error messages based on common errors
+    if (error instanceof Error) {
+      if (error.message.includes('NotCertificateOwner') || error.message.includes('ConstraintRaw')) {
+        throw new Error('You are not the owner of this certificate')
+      } else if (error.message.includes('SameOwner')) {
+        throw new Error('Cannot transfer to the same wallet address')
+      } else if (error.message.includes('InactiveCertificate')) {
+        throw new Error('This certificate is inactive and cannot be transferred')
+      } else if (error.message.includes('InvalidCertificateId')) {
+        throw new Error('Invalid certificate ID')
+      } else if (error.message.includes('NumericalOverflow')) {
+        throw new Error('Transfer count overflow - too many transfers')
+      } else if (error.message.includes('Insufficient SOL')) {
+        throw new Error('Insufficient SOL balance for transaction fees')
+      } else if (error.message.includes('User rejected')) {
+        throw new Error('Transaction was rejected by user')
+      } else if (error.message.includes('blockhash not found')) {
+        throw new Error('Network congestion. Please try again in a moment.')
+      } else if (error.message.includes('already exists') || error.message.includes('already in use')) {
+        throw new Error('Transaction conflict detected. Please wait a moment and try again.')
+      }
+    }
+    
     throw error
   }
 }
@@ -1280,7 +1324,6 @@ export const refreshBlockchainState = async (program: Program<Cernft>) => {
     
     return true
   } catch (error) {
-    console.error('Error refreshing blockchain state:', error)
     return false
   }
 }
@@ -1288,284 +1331,58 @@ export const refreshBlockchainState = async (program: Program<Cernft>) => {
 // Debug Functions (for development)
 export const debugProgramState = async (program: Program<Cernft>) => {
   try {
-    console.log('🔍 Debug: Checking program state...')
-    
     const isInit = await isProgramInitialized(program)
-    console.log('🔍 Debug: Program initialized:', isInit)
     
     if (isInit) {
       const state = await getFreshProgramState(program)
-      console.log('🔍 Debug: Program state:', state)
     }
     
     return { initialized: isInit }
   } catch (error) {
-    console.error('🔍 Debug error:', error)
     return { initialized: false, error: error }
   }
 }
 
-// Main Transfer NFT Function
-export const transferNFT = async (
-  params: TransferNFTParams
-): Promise<TransferNFTResult> => {
-  const { program, publicKey, certificateId, newOwner } = params
-
+// Helper Functions
+export const checkWalletBalance = async (
+  publicKey: PublicKey
+): Promise<{ balance: number; hasEnoughSOL: boolean; requiredSOL: number }> => {
   try {
-    console.log(`🔄 Starting NFT transfer for certificate ${certificateId}`)
-    console.log(`👤 From: ${publicKey.toString()}`)
-    console.log(`👤 To: ${newOwner.toString()}`)
+    const connection = new Connection(RPC_URL, 'confirmed')
+    const balance = await connection.getBalance(publicKey)
+    const balanceInSOL = balance / LAMPORTS_PER_SOL
+    const requiredSOL = 0.01 // Estimate for transaction fees
     
-    // Step 1: Check wallet balance
-    console.log('💰 Checking wallet balance...')
-    const balanceInfo = await checkWalletBalance(publicKey)
-    console.log(`💰 Current balance: ${balanceInfo.balance} SOL`)
-    
-    if (!balanceInfo.hasEnoughSOL) {
-      if (CLUSTER === 'devnet') {
-        console.log('💸 Insufficient balance. Requesting airdrop...')
-        const airdropSuccess = await requestAirdrop(publicKey)
-        if (!airdropSuccess) {
-          throw new Error(
-            `Insufficient SOL balance: ${balanceInfo.balance} SOL. ` +
-            `Please visit https://faucet.solana.com/ to get devnet SOL.`
-          )
-        }
-        console.log('✅ Airdrop completed.')
-      } else {
-        throw new Error(
-          `Insufficient SOL balance: ${balanceInfo.balance} SOL. ` +
-          `Required: ${balanceInfo.requiredSOL} SOL. Please add SOL to your wallet.`
-        )
-      }
+    return {
+      balance: balanceInSOL,
+      hasEnoughSOL: balanceInSOL >= requiredSOL,
+      requiredSOL
     }
-
-    // Step 2: Get program state PDA
-    const [programStatePda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('program_state')],
-      program.programId
-    )
-    console.log('🏛️ Program State PDA:', programStatePda.toString())
-
-    // Step 3: Get program state to check platform fee
-    let programState
-    try {
-      programState = await program.account.programState.fetch(programStatePda)
-      console.log('📊 Platform fee:', programState.platformFee.toString(), 'lamports')
-      console.log('🏛️ Platform address:', programState.platformAddress.toString())
-    } catch (error) {
-      console.error('❌ Error fetching program state:', error)
-      throw new Error('Program state not found. Please ensure the program is initialized.')
-    }
-
-    // Step 4: Generate certificate NFT PDA
-    const [certNftPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('certificate_nft'), new BN(certificateId).toArrayLike(Buffer, 'le', 8)],
-      program.programId
-    )
-    console.log('🎫 Certificate NFT PDA:', certNftPda.toString())
-
-    // Step 5: Get current NFT data for validation
-    let currentNFT
-    try {
-      currentNFT = await program.account.certificateNft.fetch(certNftPda)
-      console.log('📋 Current NFT data:')
-      console.log('  - Owner:', currentNFT.owner.toString())
-      console.log('  - Active:', currentNFT.isActive)
-      console.log('  - Transfer count:', currentNFT.transferCount)
-    } catch (error) {
-      console.error('❌ Error fetching NFT data:', error)
-      throw new Error(`Certificate ${certificateId} not found on blockchain`)
-    }
-    
-    // Step 6: Validate ownership and status
-    if (currentNFT.owner.toString() !== publicKey.toString()) {
-      throw new Error(
-        `You are not the owner of this NFT. ` +
-        `Current owner: ${currentNFT.owner.toString()}, ` +
-        `Your address: ${publicKey.toString()}`
-      )
-    }
-    
-    if (!currentNFT.isActive) {
-      throw new Error('This NFT is not active and cannot be transferred')
-    }
-
-    if (newOwner.toString() === publicKey.toString()) {
-      throw new Error('Cannot transfer to the same wallet address')
-    }
-
-    // Step 7: Generate transaction PDA
-    const [transactionPda] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from('transaction'),
-        new BN(certificateId).toArrayLike(Buffer, 'le', 8),
-        publicKey.toBuffer(),
-        Buffer.from([currentNFT.transferCount])
-      ],
-      program.programId
-    )
-    console.log('📝 Transaction PDA:', transactionPda.toString())
-
-    // Step 8: Check if transaction PDA already exists (duplicate transfer protection)
-    try {
-      const existingTransaction = await program.account.transaction.fetch(transactionPda)
-      if (existingTransaction) {
-        console.warn('⚠️ Transaction record already exists, this might be a duplicate transfer')
-      }
-    } catch (error) {
-      // Transaction doesn't exist yet, which is expected for new transfers
-      console.log('✅ New transaction - no existing record found')
-    }
-
-    // Step 9: Execute the transfer transaction
-    console.log('🚀 Executing transfer transaction...')
-    console.log('📋 Transaction accounts:')
-    console.log('  - Program State:', programStatePda.toString())
-    console.log('  - Certificate NFT:', certNftPda.toString())
-    console.log('  - Owner (current):', publicKey.toString())
-    console.log('  - Platform Account:', programState.platformAddress.toString())
-    console.log('  - Transaction Record:', transactionPda.toString())
-    console.log('  - New Owner:', newOwner.toString())
-
-    let retryCount = 0
-    const maxRetries = 3
-    
-    while (retryCount < maxRetries) {
-      try {
-        const tx = await program.methods
-          .transferNft(new BN(certificateId), newOwner)
-          .accountsPartial({
-            programState: programStatePda,
-            certNft: certNftPda,
-            owner: publicKey,
-            platformAccount: programState.platformAddress,
-            transaction: transactionPda,
-            systemProgram: SystemProgram.programId,
-            rent: SYSVAR_RENT_PUBKEY
-          })
-          .rpc({
-            skipPreflight: false,
-            preflightCommitment: 'processed',
-            commitment: 'processed'
-          })
-
-        console.log('📤 Transfer transaction sent:', tx)
-
-        // Step 10: Wait for confirmation
-        const connection = new Connection(
-          program.provider.connection.rpcEndpoint,
-          'confirmed'
-        )
-        
-        console.log('⏳ Waiting for transaction confirmation...')
-        const confirmation = await connection.confirmTransaction(tx, 'finalized')
-        
-        if (confirmation.value.err) {
-          throw new Error(`Transfer transaction failed: ${confirmation.value.err}`)
-        }
-        
-        console.log('✅ Transfer transaction confirmed!')
-
-        // Step 11: Verify the transfer was successful
-        try {
-          const updatedNFT = await program.account.certificateNft.fetch(certNftPda)
-          console.log('✅ Transfer verification:')
-          console.log('  - New owner:', updatedNFT.owner.toString())
-          console.log('  - Transfer count:', updatedNFT.transferCount)
-          console.log('  - Still active:', updatedNFT.isActive)
-          
-          if (updatedNFT.owner.toString() !== newOwner.toString()) {
-            throw new Error('Transfer verification failed: Owner was not updated correctly')
-          }
-          
-          if (updatedNFT.transferCount !== currentNFT.transferCount + 1) {
-            console.warn('⚠️ Transfer count may not have been updated correctly')
-          }
-          
-        } catch (verifyError) {
-          console.warn('⚠️ Could not verify transfer immediately, but transaction succeeded:', verifyError)
-        }
-
-        // Step 12: Get transaction details for gas calculation
-        let gasUsed = 0
-        try {
-          const txDetails = await connection.getTransaction(tx, {
-            commitment: 'confirmed'
-          })
-          gasUsed = txDetails?.meta?.fee || 0
-          console.log('💰 Transaction fee (gas):', gasUsed, 'lamports')
-        } catch (gasError) {
-          console.warn('⚠️ Could not fetch gas details:', gasError)
-        }
-
-        // Step 13: Get transaction record for additional verification
-        try {
-          const transactionRecord = await program.account.transaction.fetch(transactionPda)
-          console.log('📝 Transaction record created:')
-          console.log('  - Certificate ID:', transactionRecord.certificateId.toString())
-          console.log('  - Previous owner:', transactionRecord.owner.toString())
-          console.log('  - Amount (fee):', transactionRecord.amount.toString())
-          console.log('  - Credited:', transactionRecord.credited)
-        } catch (recordError) {
-          console.warn('⚠️ Could not fetch transaction record:', recordError)
-        }
-
-        // Return successful result
-        return {
-          transactionSignature: tx,
-          certificateId: certificateId,
-          previousOwner: publicKey.toString(),
-          newOwner: newOwner.toString(),
-          platformFee: programState.platformFee.toNumber(),
-          gasUsed: gasUsed,
-          transferCount: currentNFT.transferCount + 1
-        }
-        
-      } catch (txError) {
-        retryCount++
-        console.log(`❌ Transfer attempt ${retryCount} failed:`, txError)
-        
-        if (retryCount >= maxRetries) {
-          throw txError
-        }
-        
-        // Wait before retry with exponential backoff
-        const waitTime = 1000 * Math.pow(2, retryCount - 1)
-        console.log(`⏳ Waiting ${waitTime}ms before retry...`)
-        await new Promise(resolve => setTimeout(resolve, waitTime))
-      }
-    }
-
-    throw new Error('Transfer failed after maximum retries')
-
   } catch (error) {
-    console.error('💥 Error transferring NFT:', error)
-    
-    // Provide specific error messages based on common errors
-    if (error instanceof Error) {
-      if (error.message.includes('NotCertificateOwner') || error.message.includes('ConstraintRaw')) {
-        throw new Error('You are not the owner of this certificate')
-      } else if (error.message.includes('SameOwner')) {
-        throw new Error('Cannot transfer to the same wallet address')
-      } else if (error.message.includes('InactiveCertificate')) {
-        throw new Error('This certificate is inactive and cannot be transferred')
-      } else if (error.message.includes('InvalidCertificateId')) {
-        throw new Error('Invalid certificate ID')
-      } else if (error.message.includes('NumericalOverflow')) {
-        throw new Error('Transfer count overflow - too many transfers')
-      } else if (error.message.includes('Insufficient SOL')) {
-        throw new Error('Insufficient SOL balance for transaction fees')
-      } else if (error.message.includes('User rejected')) {
-        throw new Error('Transaction was rejected by user')
-      } else if (error.message.includes('blockhash not found')) {
-        throw new Error('Network congestion. Please try again in a moment.')
-      } else if (error.message.includes('already exists') || error.message.includes('already in use')) {
-        throw new Error('Transaction conflict detected. Please wait a moment and try again.')
-      }
+    return {
+      balance: 0,
+      hasEnoughSOL: false,
+      requiredSOL: 0.01
     }
+  }
+}
+
+export const requestAirdrop = async (publicKey: PublicKey): Promise<boolean> => {
+  try {
+    if (CLUSTER !== 'devnet') {
+      throw new Error('Airdrop only available on devnet')
+    }
+
+    const connection = new Connection(RPC_URL, 'confirmed')
+    const airdropSignature = await connection.requestAirdrop(
+      publicKey,
+      2 * LAMPORTS_PER_SOL // Request 2 SOL
+    )
     
-    throw error
+    await connection.confirmTransaction(airdropSignature, 'finalized')
+    return true
+  } catch (error) {
+    return false
   }
 }
 
@@ -1582,8 +1399,6 @@ export const getCertificateTransferHistory = async (
   credited: boolean
 }>> => {
   try {
-    console.log(`🔍 Getting transfer history for certificate ${certificateId}`)
-    
     // Get current NFT to know how many transfers have occurred
     const [certNftPda] = PublicKey.findProgramAddressSync(
       [Buffer.from('certificate_nft'), new BN(certificateId).toArrayLike(Buffer, 'le', 8)],
@@ -1592,8 +1407,6 @@ export const getCertificateTransferHistory = async (
     
     const currentNFT = await program.account.certificateNft.fetch(certNftPda)
     const transferCount = currentNFT.transferCount
-    
-    console.log(`📊 Certificate has ${transferCount} transfers`)
     
     const transferHistory: { transferNumber: number; transactionPda: string; owner: string; amount: number; timestamp: number; credited: boolean }[] | PromiseLike<{ transferNumber: number; transactionPda: string; owner: string; amount: number; timestamp: number; credited: boolean }[]> = []
     
@@ -1605,19 +1418,16 @@ export const getCertificateTransferHistory = async (
       try {
         // This is a simplified approach - in reality you'd need the actual owner addresses
         // for each transfer to generate the correct PDA
-        console.log(`📝 Transfer ${i + 1} - PDA calculation would need historical owner data`)
         
         // For now, we can only get the latest transfer record
         // A more complete implementation would require additional on-chain storage
       } catch (error) {
-        console.warn(`⚠️ Could not fetch transfer ${i + 1}:`, error)
       }
     }
     
     return transferHistory
     
   } catch (error) {
-    console.error('💥 Error getting transfer history:', error)
     return []
   }
 }
@@ -1639,8 +1449,6 @@ export const validateTransferRequest = async (
   const issues: string[] = []
   
   try {
-    console.log(`🔍 Validating transfer request for certificate ${certificateId}`)
-    
     // Check program state
     const [programStatePda] = PublicKey.findProgramAddressSync(
       [Buffer.from('program_state')],
@@ -1693,7 +1501,6 @@ export const validateTransferRequest = async (
     }
     
   } catch (error) {
-    console.error('💥 Error validating transfer request:', error)
     issues.push(`Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     
     return {
@@ -1718,8 +1525,6 @@ export const estimateTransferCosts = async (
   costInSOL: number
 }> => {
   try {
-    console.log(`💰 Estimating transfer costs for certificate ${certificateId}`)
-    
     // Get platform fee from program state
     const [programStatePda] = PublicKey.findProgramAddressSync(
       [Buffer.from('program_state')],
@@ -1736,11 +1541,6 @@ export const estimateTransferCosts = async (
     const totalCost = platformFee + estimatedGasFee
     const costInSOL = totalCost / LAMPORTS_PER_SOL
     
-    console.log(`💰 Cost estimation:`)
-    console.log(`  - Platform fee: ${platformFee} lamports`)
-    console.log(`  - Estimated gas: ${estimatedGasFee} lamports`)
-    console.log(`  - Total cost: ${totalCost} lamports (${costInSOL} SOL)`)
-    
     return {
       platformFee,
       estimatedGasFee,
@@ -1749,8 +1549,6 @@ export const estimateTransferCosts = async (
     }
     
   } catch (error) {
-    console.error('💥 Error estimating transfer costs:', error)
-    
     // Return default estimates if we can't get exact values
     return {
       platformFee: 5000, // Default platform fee estimate

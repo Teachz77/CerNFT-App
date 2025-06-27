@@ -12,17 +12,17 @@ interface FilterOptions {
 }
 
 const Collection: React.FC = () => {
-  const { connected, publicKey } = useWallet()
-  const { 
-    nftCollection, 
-    stats, 
-    refreshCollection, 
+  const { connected } = useWallet()
+  const {
+    nftCollection,
+    stats,
+    refreshCollection,
     isLoading: contextLoading,
     lastSyncTime,
     syncStatus,
-    updateNFT 
+    updateNFT
   } = useNFT()
-  
+
   const [filters, setFilters] = useState<FilterOptions>({
     verified: 'all',
     issuer: '',
@@ -46,10 +46,10 @@ const Collection: React.FC = () => {
         // Filter by verification status
         if (filters.verified === 'verified' && !nft.isVerified) return false
         if (filters.verified === 'unverified' && nft.isVerified) return false
-        
+
         // Filter by issuer
         if (filters.issuer && nft.issuer !== filters.issuer) return false
-        
+
         // Filter by search query
         if (searchQuery) {
           const query = searchQuery.toLowerCase()
@@ -60,7 +60,7 @@ const Collection: React.FC = () => {
             nft.certificateId.toString().includes(query)
           )
         }
-        
+
         return true
       })
       .sort((a, b) => {
@@ -94,7 +94,6 @@ const Collection: React.FC = () => {
   }
 
   const handleRefresh = async () => {
-    console.log('🔄 Refreshing collection...')
     await refreshCollection(false) // Smart sync by default
   }
 
@@ -118,10 +117,10 @@ const Collection: React.FC = () => {
 
   const formatLastSyncTime = (date: Date | null) => {
     if (!date) return 'Never'
-    
+
     const now = new Date()
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-    
+
     if (diffInSeconds < 60) return 'Just now'
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
@@ -134,19 +133,16 @@ const Collection: React.FC = () => {
       // TODO: Implement actual verification logic with smart contract
       // For now, just update the local state
       updateNFT(certificateId, { isVerified: true })
-      
+
       // Update selected NFT if it's the one being verified
       if (selectedNFT && selectedNFT.certificateId === certificateId) {
         setSelectedNFT(prev => prev ? { ...prev, isVerified: true } : null)
       }
-      
-      console.log(`✅ NFT ${certificateId} verified successfully`)
-      
+
       // Show success message
       alert(`✅ Certificate #${certificateId} has been verified!`)
-      
+
     } catch (error) {
-      console.error('❌ Error verifying NFT:', error)
       alert('❌ Error verifying certificate. Please try again.')
     }
   }
@@ -205,7 +201,7 @@ const Collection: React.FC = () => {
           <div className="header-content">
             <h1>My Certificate Collection</h1>
             <p>Manage and view your verified digital certificates stored on the Solana blockchain</p>
-            
+
             {/* Sync Status Info */}
             <div className="sync-status-info">
               <div className="sync-status">
@@ -221,9 +217,9 @@ const Collection: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           <div className="header-actions">
-            <button 
+            <button
               className="btn btn-secondary"
               onClick={handleRefresh}
               disabled={contextLoading}
@@ -243,7 +239,7 @@ const Collection: React.FC = () => {
                 </>
               )}
             </button>
-            
+
             <a href="/create-nft" className="btn btn-primary">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
@@ -322,7 +318,7 @@ const Collection: React.FC = () => {
                 className="search-input"
               />
               {searchQuery && (
-                <button 
+                <button
                   className="clear-search"
                   onClick={() => setSearchQuery('')}
                 >
@@ -337,7 +333,7 @@ const Collection: React.FC = () => {
           <div className="filter-section">
             <div className="filter-group">
               <label>Status:</label>
-              <select 
+              <select
                 value={filters.verified}
                 onChange={(e) => handleFilterChange('verified', e.target.value)}
                 className="filter-select"
@@ -350,7 +346,7 @@ const Collection: React.FC = () => {
 
             <div className="filter-group">
               <label>Issuer:</label>
-              <select 
+              <select
                 value={filters.issuer}
                 onChange={(e) => handleFilterChange('issuer', e.target.value)}
                 className="filter-select"
@@ -364,7 +360,7 @@ const Collection: React.FC = () => {
 
             <div className="filter-group">
               <label>Sort by:</label>
-              <select 
+              <select
                 value={filters.sortBy}
                 onChange={(e) => handleFilterChange('sortBy', e.target.value)}
                 className="filter-select"
@@ -376,7 +372,7 @@ const Collection: React.FC = () => {
               </select>
             </div>
 
-            <button 
+            <button
               className="btn btn-secondary btn-small"
               onClick={resetFilters}
             >
@@ -386,7 +382,7 @@ const Collection: React.FC = () => {
 
           <div className="view-controls">
             <div className="view-mode-toggle">
-              <button 
+              <button
                 className={`view-btn ${filters.viewMode === 'grid' ? 'active' : ''}`}
                 onClick={() => handleFilterChange('viewMode', 'grid')}
               >
@@ -395,7 +391,7 @@ const Collection: React.FC = () => {
                 </svg>
                 Grid
               </button>
-              <button 
+              <button
                 className={`view-btn ${filters.viewMode === 'list' ? 'active' : ''}`}
                 onClick={() => handleFilterChange('viewMode', 'list')}
               >
@@ -644,7 +640,7 @@ const Collection: React.FC = () => {
                   </div>
 
                   <div className="modal-links">
-                    <a 
+                    <a
                       href={selectedNFT.metadataUri}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -656,7 +652,7 @@ const Collection: React.FC = () => {
                       View Metadata
                     </a>
                     {selectedNFT.transactionSignature && (
-                      <a 
+                      <a
                         href={`https://explorer.solana.com/tx/${selectedNFT.transactionSignature}?cluster=devnet`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -668,7 +664,7 @@ const Collection: React.FC = () => {
                         View on Explorer
                       </a>
                     )}
-                    <a 
+                    <a
                       href="/verify-nft"
                       className="link-btn"
                     >
@@ -684,7 +680,7 @@ const Collection: React.FC = () => {
 
               <div className="modal-actions">
                 {!selectedNFT.isVerified && (
-                  <button 
+                  <button
                     onClick={() => handleVerifyNFT(selectedNFT.certificateId)}
                     className="btn btn-secondary"
                     title="Mark this certificate as verified (local only)"
@@ -696,7 +692,7 @@ const Collection: React.FC = () => {
                     Mark as Verified
                   </button>
                 )}
-                <a 
+                <a
                   href="/transfer-nft"
                   className="btn btn-primary"
                 >

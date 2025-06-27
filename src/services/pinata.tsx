@@ -100,10 +100,8 @@ class PinataService {
         maxBodyLength: Infinity,
       })
 
-      console.log('File uploaded to IPFS:', response.data)
       return response.data
     } catch (error) {
-      console.error('Error uploading file to Pinata:', error)
       throw new Error('Failed to upload file to IPFS')
     }
   }
@@ -133,10 +131,8 @@ class PinataService {
         headers: this.getHeaders(),
       })
 
-      console.log('Metadata uploaded to IPFS:', response.data)
       return response.data
     } catch (error) {
-      console.error('Error uploading metadata to Pinata:', error)
       throw new Error('Failed to upload metadata to IPFS')
     }
   }
@@ -229,10 +225,8 @@ class PinataService {
         headers: this.getHeaders(),
       })
       
-      console.log('Pinata connection test:', response.data)
       return response.data.message === 'Congratulations! You are communicating with the Pinata API!'
     } catch (error) {
-      console.error('Pinata connection test failed:', error)
       return false
     }
   }

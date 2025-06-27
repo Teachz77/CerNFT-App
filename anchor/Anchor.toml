@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-cernft = "GqmvFY26B6xAs8wYsKP1F1W5QvcaTUXDqJVNjZgutkXe"
+cernft = "Aei8GrZ6qdq5pFZJkrDztVqKFe7oLdoiyS2KCxj7M13n"
 
 [registry]
 url = "https://api.apr.dev"

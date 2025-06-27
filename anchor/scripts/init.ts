@@ -3,7 +3,6 @@ import * as anchor from '@coral-xyz/anchor'
 import { Cernft } from '../target/types/cernft'
 import idl from '../target/idl/cernft.json'
 import fs from 'fs'
-import { error } from 'console'
 // import { getClusterURL } from '@/utils/helper'
 const { SystemProgram, PublicKey } = anchor.web3
 
