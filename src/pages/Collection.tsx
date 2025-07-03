@@ -20,7 +20,8 @@ const Collection: React.FC = () => {
     isLoading: contextLoading,
     lastSyncTime,
     syncStatus,
-    updateNFT
+    updateNFT,
+    getNFTById,
   } = useNFT()
 
   const [filters, setFilters] = useState<FilterOptions>({
@@ -127,24 +128,45 @@ const Collection: React.FC = () => {
     return formatDate(date.toISOString())
   }
 
-  // Mock verification function - in real app this would call smart contract
   const handleVerifyNFT = async (certificateId: number) => {
-    try {
-      // TODO: Implement actual verification logic with smart contract
-      // For now, just update the local state
-      updateNFT(certificateId, { isVerified: true })
-
-      // Update selected NFT if it's the one being verified
-      if (selectedNFT && selectedNFT.certificateId === certificateId) {
-        setSelectedNFT(prev => prev ? { ...prev, isVerified: true } : null)
-      }
-
-      // Show success message
-      alert(`✅ Certificate #${certificateId} has been verified!`)
-
-    } catch (error) {
-      alert('❌ Error verifying certificate. Please try again.')
+  try {
+    // Dapatkan NFT yang akan diverifikasi untuk mempertahankan semua data
+    const nftToVerify = getNFTById(certificateId)
+    if (!nftToVerify) {
+      alert('❌ Certificate not found')
+      return
     }
+
+    // Update dengan mempertahankan semua data existing
+    const updatedData: Partial<CertificateNFT> = {
+      isVerified: true,
+      // Pastikan data penting tidak hilang
+      transactionSignature: nftToVerify.transactionSignature,
+      fileHash: nftToVerify.fileHash,
+      metadataUri: nftToVerify.metadataUri,
+      imagePreview: nftToVerify.imagePreview,
+      ipfsUri: nftToVerify.ipfsUri,
+      createdAt: nftToVerify.createdAt
+    }
+
+    // Update NFT dengan data yang aman
+    updateNFT(certificateId, updatedData)
+
+    // Update selected NFT jika ini yang sedang ditampilkan
+    if (selectedNFT && selectedNFT.certificateId === certificateId) {
+      setSelectedNFT(prev => prev ? { 
+        ...prev, 
+        ...updatedData
+      } : null)
+    }
+
+    // Show success message
+    alert(`✅ Certificate #${certificateId} has been verified!`)
+
+  } catch (error) {
+    console.error('❌ Error verifying certificate:', error)
+    alert('❌ Error verifying certificate. Please try again.')
+  }
   }
 
   const getSyncStatusIcon = () => {
@@ -653,7 +675,7 @@ const Collection: React.FC = () => {
                     </a>
                     {selectedNFT.transactionSignature && (
                       <a
-                        href={`https://explorer.solana.com/tx/${selectedNFT.transactionSignature}?cluster=devnet`}
+                        href={`https://explorer.solana.com/tx/${selectedNFT.transactionSignature}?cluster=localhost`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="link-btn"

@@ -505,7 +505,7 @@ const CreateNFT: React.FC = () => {
                     <div className="file-info">
                       <h4>{formData.file.name}</h4>
                       <p>{(formData.file.size / 1024 / 1024).toFixed(2)} MB</p>
-                      <button
+                      {/* <button
                         type="button"
                         onClick={() => {
                           setFormData((prev) => ({ ...prev, file: null }));
@@ -515,11 +515,23 @@ const CreateNFT: React.FC = () => {
                         disabled={isUploading}
                       >
                         Remove File
-                      </button>
+                      </button> */}
                     </div>
+                    
                   </div>
                 )}
               </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData((prev) => ({ ...prev, file: null }));
+                    setPreview(null);
+                  }}
+                  className="remove-file-btn"
+                  disabled={isUploading}
+                >
+                  Remove File
+                </button>
             </div>
           </div>
 

@@ -330,8 +330,8 @@ const VerifyNFT: React.FC = () => {
     <div className="verify-nft-page">
       <div className="container">
         <div className="page-header">
-          <h1>Verifikasi File Sertifikat</h1>
-          <p>Unggah file sertifikat untuk memverifikasi keasliannya terhadap blockchain Solana</p>
+          <h1>Verify Certificate File</h1>
+          <p>Upload the certificate file to verify its authenticity with the Solana blockchain</p>
           <div className="verification-info">
             <div className="info-card">
               <div className="info-icon">
@@ -340,11 +340,11 @@ const VerifyNFT: React.FC = () => {
                 </svg>
               </div>
               <div className="info-content">
-                <h3>Cara Kerja</h3>
+                <h3>How to work</h3>
                 <p>
-                  Saat Anda mengunggah file, kami menghitung hash SHA-256 dan membandingkannya dengan 
-                  semua metadata sertifikat yang tersimpan di blockchain Solana. Jika kami menemukan kecocokan, 
-                  itu membuktikan file tersebut adalah sertifikat asli yang tidak dimodifikasi.
+                  When you upload a file, the system calculates a SHA-256 hash and compares it to 
+                  all the certificate metadata stored on the Solana blockchain. If we find a match, 
+                  it proves the file is the original, unmodified certificate.
                 </p>
               </div>
             </div>
@@ -354,7 +354,7 @@ const VerifyNFT: React.FC = () => {
         <form onSubmit={handleVerify} className="verify-nft-form">
           <div className="form-content">
             <div className="verification-input">
-              <label className="field-label">File Sertifikat *</label>
+              <label className="field-label">Certificate/Document *</label>
               <div
                 className={`file-upload-area ${dragActive ? 'drag-active' : ''} ${uploadedFile ? 'has-file' : ''}`}
                 onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
@@ -370,9 +370,9 @@ const VerifyNFT: React.FC = () => {
                         <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
                       </svg>
                     </div>
-                    <h4>Unggah Sertifikat untuk Diverifikasi</h4>
-                    <p>Seret dan lepas atau klik untuk memilih</p>
-                    <span className="file-types">Mendukung: PNG, JPG, PDF, DOC, DOCX</span>
+                    <h4>Upload Certificate for Verification</h4>
+                    <p>Drag and drop or click to select</p>
+                    <span className="file-types">Support: PNG, JPG, PDF, DOC, DOCX</span>
                   </label>
                 ) : (
                   <div className="file-preview">
@@ -391,13 +391,14 @@ const VerifyNFT: React.FC = () => {
                       <button 
                         type="button" onClick={resetForm}
                         className="remove-file-btn" disabled={isVerifying}
-                      > Hapus File </button>
+                      > Remove File </button>
                     </div>
                   </div>
                 )}
               </div>
               <span className="field-hint">
-                Unggah file sertifikat yang ingin Anda verifikasi. Sistem akan menghitung hash-nya dan mencari kecocokan di blockchain.
+                Upload the certificate file you want to verify. 
+                The system will calculate its hash and look for a match in the blockchain.
               </span>
             </div>
           </div>
@@ -405,14 +406,14 @@ const VerifyNFT: React.FC = () => {
           <div className="form-actions">
             <button type="submit" disabled={!uploadedFile || isVerifying} className="btn btn-primary btn-large">
               {isVerifying ? (
-                <><div className="loading-spinner"></div> Memverifikasi File...</>
+                <><div className="loading-spinner"></div> Verifying Files...</>
               ) : (
                 <>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
                     <path d="M10 12l2 2 4-4" stroke="currentColor" strokeWidth="2" fill="none"/>
                   </svg>
-                  Verifikasi File Sertifikat
+                  Verification certificate file
                 </>
               )}
             </button>
@@ -422,7 +423,7 @@ const VerifyNFT: React.FC = () => {
 
         {isVerifying && verificationSteps.length > 0 && (
           <div className="verification-progress">
-            <h3>Memverifikasi Sertifikat...</h3>
+            <h3>Verifying Files...</h3>
             <div className="progress-steps">
               {verificationSteps.map((step) => (
                 <div key={step.step} className={`progress-step ${step.status}`}>
@@ -466,15 +467,15 @@ const VerifyNFT: React.FC = () => {
             </div>
 
             <div className="hash-comparison">
-              <h4>Perbandingan Hash</h4>
+              <h4>Hash comparison</h4>
               <div className="hash-details">
                 <div className="hash-item">
-                  <span className="hash-label">Hash File yang Diunggah:</span>
+                  <span className="hash-label">Uploaded File Hash:</span>
                   <span className="hash-value mono">{verificationResult.uploadedFileHash}</span>
                 </div>
                 {verificationResult.originalFileHash && (
                   <div className="hash-item">
-                    <span className="hash-label">Hash Sertifikat Asli:</span>
+                    <span className="hash-label">Original Certificate Hash:</span>
                     <span className="hash-value mono">{verificationResult.originalFileHash}</span>
                   </div>
                 )}
@@ -488,38 +489,38 @@ const VerifyNFT: React.FC = () => {
 
             {verificationResult.fileMatches && (
               <div className="certificate-details">
-                <h4>Detail Sertifikat</h4>
+                <h4>Certificate details</h4>
                 <div className="detail-grid">
                   <div className="detail-item">
-                    <span className="detail-label">ID Sertifikat:</span>
+                    <span className="detail-label">Certificate ID:</span>
                     <span className="detail-value">#{verificationResult.certificateId}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Judul:</span>
+                    <span className="detail-label">Title:</span>
                     <span className="detail-value">{verificationResult.title}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Penerbit:</span>
+                    <span className="detail-label">Issuer:</span>
                     <span className="detail-value">{verificationResult.issuer}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Penerima:</span>
+                    <span className="detail-label">Recipient:</span>
                     <span className="detail-value">{verificationResult.recipient}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Tanggal Terbit:</span>
+                    <span className="detail-label">Issue Date:</span>
                     <span className="detail-value">{formatDate(verificationResult.issueDate)}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Pemilik Saat Ini:</span>
+                    <span className="detail-label">Owner:</span>
                     <span className="detail-value mono">{verificationResult.owner.slice(0, 8)}...{verificationResult.owner.slice(-8)}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Jumlah Transfer:</span>
+                    <span className="detail-label">Transfer Count:</span>
                     <span className="detail-value">{verificationResult.transferCount}</span>
                   </div>
                   <div className="detail-item">
-                    <span className="detail-label">Status Verifikasi:</span>
+                    <span className="detail-label">Verification Status:</span>
                     <span className={`detail-badge ${verificationResult.isVerified ? 'verified' : 'unverified'}`}>
                       {verificationResult.isVerified ? 'Terverifikasi oleh Penerbit' : 'Menunggu Verifikasi'}
                     </span>
@@ -533,7 +534,7 @@ const VerifyNFT: React.FC = () => {
                 </div>
 
                 <div className="verification-links">
-                  <h4>Tautan Verifikasi</h4>
+                  <h4>Verification Link</h4>
                   <div className="links-grid">
                     <a 
                       href={pinataService.getGatewayUrl(verificationResult.ipfsUri.replace('ipfs://', ''))}
@@ -542,7 +543,7 @@ const VerifyNFT: React.FC = () => {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z"/>
                       </svg>
-                      Lihat di IPFS
+                      Look at IPFS
                     </a>
                     <a 
                       href={`https://explorer.solana.com/address/${verificationResult.owner}?cluster=devnet`}
@@ -551,7 +552,7 @@ const VerifyNFT: React.FC = () => {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z"/>
                       </svg>
-                      Lihat Pemilik di Solana Explorer
+                      View Owners in Solana Explorer
                     </a>
                   </div>
                 </div>

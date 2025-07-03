@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-// import { useWallet } from '@solana/wallet-adapter-react'
 import './Header.css'
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  // const { connected } = useWallet()
   const location = useLocation()
 
   const toggleMenu = () => {
@@ -58,10 +56,10 @@ const Header: React.FC = () => {
 
   const menuItems = [
     { id: 'home', label: 'Home', path: '/' },
-    { id: 'create-nft', label: 'Buat NFT', path: '/create-nft' },
+    { id: 'create-nft', label: 'Create NFT', path: '/create-nft' },
     { id: 'verify-nft', label: 'Verify NFT', path: '/verify-nft' },
     { id: 'transfer-nft', label: 'Transfer NFT', path: '/transfer-nft' },
-    { id: 'collection', label: 'Koleksi', path: '/collection' }
+    { id: 'collection', label: 'Collection', path: '/collection' }
   ]
 
   return (
