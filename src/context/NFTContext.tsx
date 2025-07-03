@@ -88,6 +88,7 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
   const STORAGE_KEY = `solana_nft_collection_${publicKey?.toString() || 'default'}`
   const SYNC_TIME_KEY = `solana_nft_sync_time_${publicKey?.toString() || 'default'}`
   const CERT_COUNT_KEY = `solana_cert_count_${publicKey?.toString() || 'default'}`
+  const METADATA_KEY = `solana_nft_metadata_${publicKey?.toString() || 'default'}`
 
   // Load NFTs from localStorage on component mount
   useEffect(() => {
@@ -113,6 +114,7 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
   useEffect(() => {
     if (connected && publicKey && nftCollection.length >= 0) {
       saveNFTsToStorage()
+      saveNFTMetadata()
     }
   }, [nftCollection, connected, publicKey])
 
@@ -136,6 +138,43 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(nftCollection))
     } catch (error) {
       console.error('❌ Error saving NFTs to storage:', error)
+    }
+  }
+
+  // Save NFT metadata separately to preserve additional data
+  const saveNFTMetadata = () => {
+    try {
+      const metadata: Record<number, {
+        fileHash?: string
+        transactionSignature?: string
+        imagePreview?: string
+        metadataUri?: string
+        isVerified?: boolean
+      }> = {}
+      
+      nftCollection.forEach(nft => {
+        metadata[nft.certificateId] = {
+          fileHash: nft.fileHash,
+          transactionSignature: nft.transactionSignature,
+          imagePreview: nft.imagePreview,
+          metadataUri: nft.metadataUri,
+          isVerified: nft.isVerified
+        }
+      })
+      
+      localStorage.setItem(METADATA_KEY, JSON.stringify(metadata))
+    } catch (error) {
+      console.error('❌ Error saving NFT metadata:', error)
+    }
+  }
+
+  const loadNFTMetadata = (): Record<number, any> => {
+    try {
+      const metadata = localStorage.getItem(METADATA_KEY)
+      return metadata ? JSON.parse(metadata) : {}
+    } catch (error) {
+      console.error('❌ Error loading NFT metadata:', error)
+      return {}
     }
   }
 
@@ -217,6 +256,7 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(SYNC_TIME_KEY)
     localStorage.removeItem(CERT_COUNT_KEY)
+    localStorage.removeItem(METADATA_KEY)
     
     // Reset state
     setNftCollection([])
@@ -224,8 +264,8 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     setLastKnownCertificateCount(0)
   }
 
-  // Convert blockchain NFT to app NFT format
-  const convertBlockchainToAppNFT = (blockchainNFT: BlockchainNFT, existingNFT?: CertificateNFT): CertificateNFT => {
+  // Convert blockchain NFT to app NFT format with preserved metadata
+  const convertBlockchainToAppNFT = (blockchainNFT: BlockchainNFT, existingNFT?: CertificateNFT, savedMetadata?: any): CertificateNFT => {
     return {
       certificateId: blockchainNFT.certificateId,
       title: blockchainNFT.title,
@@ -233,17 +273,17 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       issuer: blockchainNFT.issuerName,
       recipient: blockchainNFT.recipientName,
       issueDate: new Date(blockchainNFT.issueDate * 1000).toISOString().split('T')[0],
-      isVerified: blockchainNFT.statusVerify,
+      isVerified: savedMetadata?.isVerified ?? existingNFT?.isVerified ?? blockchainNFT.statusVerify,
       transferCount: blockchainNFT.transferCount,
       ipfsUri: blockchainNFT.ipfsUri,
-      metadataUri: existingNFT?.metadataUri || blockchainNFT.ipfsUri,
-      imagePreview: existingNFT?.imagePreview,
+      metadataUri: savedMetadata?.metadataUri ?? existingNFT?.metadataUri ?? blockchainNFT.ipfsUri,
+      imagePreview: savedMetadata?.imagePreview ?? existingNFT?.imagePreview,
       owner: blockchainNFT.owner,
       isActive: blockchainNFT.isActive,
-      transactionSignature: existingNFT?.transactionSignature,
+      transactionSignature: savedMetadata?.transactionSignature ?? existingNFT?.transactionSignature,
       creator: blockchainNFT.creator,
       createdAt: existingNFT?.createdAt || new Date(blockchainNFT.issueDate * 1000).toISOString(),
-      fileHash: existingNFT?.fileHash
+      fileHash: savedMetadata?.fileHash ?? existingNFT?.fileHash
     }
   }
 
@@ -273,6 +313,9 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
         return
       }
       
+      // Load saved metadata
+      const savedMetadata = loadNFTMetadata()
+      
       // Fetch NFTs from blockchain for this user
       const blockchainNFTs = await fetchUserNFTs(program, publicKey)
       
@@ -280,11 +323,12 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
       const state = await getFreshProgramState(program)
       saveLastKnownCertificateCount(state.certificateCount)
       
-      // Convert blockchain NFTs to app format
+      // Convert blockchain NFTs to app format with preserved metadata
       const convertedNFTs: CertificateNFT[] = blockchainNFTs.map(nft => {
-        // Find additional data from localStorage
+        // Find additional data from localStorage and saved metadata
         const existingNFT = nftCollection.find(existing => existing.certificateId === nft.certificateId)
-        return convertBlockchainToAppNFT(nft, existingNFT)
+        const metadata = savedMetadata[nft.certificateId]
+        return convertBlockchainToAppNFT(nft, existingNFT, metadata)
       })
       
       // Smart merge strategy: combine blockchain data with localStorage
@@ -327,7 +371,7 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     }
   }
 
-  // Force refresh - gets pure data from blockchain
+  // Force refresh - gets pure data from blockchain but preserves metadata
   const forceRefreshFromBlockchain = async () => {
     if (!connected || !publicKey) return
     
@@ -353,36 +397,42 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
         return
       }
       
+      // Load saved metadata to preserve it
+      const savedMetadata = loadNFTMetadata()
+      
       const blockchainNFTs = await fetchUserNFTs(program, publicKey)
       
       // Update last known certificate count
       const state = await getFreshProgramState(program)
       saveLastKnownCertificateCount(state.certificateCount)
       
-      const convertedNFTs: CertificateNFT[] = blockchainNFTs.map(nft => ({
-        certificateId: nft.certificateId,
-        title: nft.title,
-        description: nft.description,
-        issuer: nft.issuerName,
-        recipient: nft.recipientName,
-        issueDate: new Date(nft.issueDate * 1000).toISOString().split('T')[0],
-        isVerified: nft.statusVerify,
-        transferCount: nft.transferCount,
-        ipfsUri: nft.ipfsUri,
-        metadataUri: nft.ipfsUri, // Reset to blockchain data
-        imagePreview: undefined, // Reset preview
-        owner: nft.owner,
-        isActive: nft.isActive,
-        transactionSignature: undefined, // Reset transaction signature
-        creator: nft.creator,
-        createdAt: new Date(nft.issueDate * 1000).toISOString(),
-        fileHash: undefined // Reset file hash
-      }))
+      const convertedNFTs: CertificateNFT[] = blockchainNFTs.map(nft => {
+        const metadata = savedMetadata[nft.certificateId]
+        return {
+          certificateId: nft.certificateId,
+          title: nft.title,
+          description: nft.description,
+          issuer: nft.issuerName,
+          recipient: nft.recipientName,
+          issueDate: new Date(nft.issueDate * 1000).toISOString().split('T')[0],
+          isVerified: metadata?.isVerified ?? nft.statusVerify,
+          transferCount: nft.transferCount,
+          ipfsUri: nft.ipfsUri,
+          metadataUri: metadata?.metadataUri ?? nft.ipfsUri,
+          imagePreview: metadata?.imagePreview,
+          owner: nft.owner,
+          isActive: nft.isActive,
+          transactionSignature: metadata?.transactionSignature,
+          creator: nft.creator,
+          createdAt: new Date(nft.issueDate * 1000).toISOString(),
+          fileHash: metadata?.fileHash
+        }
+      })
       
       // Sort by certificate ID descending
       convertedNFTs.sort((a, b) => b.certificateId - a.certificateId)
       
-      // Overwrite with pure blockchain data
+      // Update with blockchain data but preserve metadata
       setNftCollection(convertedNFTs)
       saveLastSyncTime(new Date())
       setSyncStatus('success')
@@ -446,11 +496,41 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
   // Update existing NFT
   const updateNFT = (certificateId: number, updates: Partial<CertificateNFT>) => {
     setNftCollection(prev => 
-      prev.map(nft => 
-        nft.certificateId === certificateId 
-          ? { ...nft, ...updates }
-          : nft
-      )
+      prev.map(nft => {
+        if (nft.certificateId === certificateId) {
+
+          const updatedNFT = {
+            ...nft,  // Data existing
+            ...updates  // Update baru
+          }
+          
+          // Validasi data penting masih ada setelah update
+          const importantFields = [
+            'transactionSignature', 
+            'fileHash', 
+            'metadataUri', 
+            'ipfsUri', 
+            'createdAt',
+            'imagePreview'
+          ]
+          
+          importantFields.forEach(field => {
+            // Jika field penting hilang dari update, pertahankan dari data original
+            if (updates[field as keyof CertificateNFT] === undefined && nft[field as keyof CertificateNFT]) {
+              (updatedNFT as any)[field] = nft[field as keyof CertificateNFT]
+            }
+          })
+          
+          console.log(`✅ Updated NFT #${certificateId}:`, {
+            before: nft,
+            updates: updates,
+            after: updatedNFT
+          })
+          
+          return updatedNFT
+        }
+        return nft
+      })
     )
   }
 
@@ -476,6 +556,7 @@ export const NFTProvider: React.FC<NFTProviderProps> = ({ children }) => {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(SYNC_TIME_KEY)
     localStorage.removeItem(CERT_COUNT_KEY)
+    localStorage.removeItem(METADATA_KEY)
     setLastSyncTime(null)
     setLastKnownCertificateCount(0)
     setSyncStatus('idle')
